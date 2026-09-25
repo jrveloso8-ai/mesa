@@ -1238,3 +1238,61 @@ body {
   font-size: 0.75rem;
   color: var(--text-muted);
 }
+
+/* Banner de Auditoria e Transparência Demo */
+.demo-banner {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.12) 0%, rgba(139, 92, 246, 0.15) 100%);
+  border: 1px solid rgba(59, 130, 246, 0.35);
+  border-radius: 12px;
+  padding: 1rem 1.4rem;
+  margin-bottom: 1.8rem;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+}
+
+.demo-banner-icon {
+  font-size: 1.6rem;
+  flex-shrink: 0;
+}
+
+.demo-banner-content {
+  flex: 1;
+}
+
+.demo-banner-title {
+  font-family: var(--font-heading);
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: #93C5FD;
+  margin-bottom: 0.25rem;
+  letter-spacing: 0.02em;
+}
+
+.demo-banner-text {
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+
+.demo-banner-text code {
+  background: rgba(0, 0, 0, 0.3);
+  padding: 0.15rem 0.4rem;
+  border-radius: 4px;
+  font-family: var(--font-mono);
+  color: #38BDF8;
+}
+
+.demo-banner-badge {
+  flex-shrink: 0;
+  background: rgba(59, 130, 246, 0.25);
+  border: 1px solid rgba(59, 130, 246, 0.5);
+  color: #60A5FA;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 0.3rem 0.7rem;
+  border-radius: 20px;
+  letter-spacing: 0.05em;
+}

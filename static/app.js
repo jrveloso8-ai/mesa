@@ -149,10 +149,20 @@ async function iniciarAnalise() {
   }
 }
 
+let isDemoAmbiente = false;
+
 async function verificarStatus() {
   try {
     const res = await fetch("/api/status");
     const data = await res.json();
+
+    if (typeof data.is_demo !== "undefined") {
+      isDemoAmbiente = Boolean(data.is_demo);
+      const banner = document.getElementById("demoBanner");
+      if (banner) {
+        banner.style.display = isDemoAmbiente ? "flex" : "none";
+      }
+    }
 
     atualizarLogs(data.logs || []);
 
@@ -171,7 +181,7 @@ async function verificarStatus() {
       clearInterval(pollingInterval);
       pollingInterval = null;
       progressoVisualAtual = 100;
-      atualizarProgresso(100, "Esteira Concluída! Relatório oficial e deliberação disponíveis.");
+      atualizarProgresso(100, isDemoAmbiente ? "Fluxo Demonstrativo Concluído! Relatório e deliberação disponíveis." : "Esteira Concluída! Relatório oficial e deliberação disponíveis.");
 
       const isAprov = data.resultado && data.resultado.status_decisao && data.resultado.status_decisao.includes("APROVAD");
       const tabPill = document.getElementById("tabStatusPill");
@@ -199,8 +209,13 @@ function atualizarPill(tipo, texto) {
 
 function resetarBotao() {
   const btn = document.getElementById("btnIniciar");
+  if (!btn) return;
   btn.disabled = false;
-  btn.innerHTML = `<span class="btn-icon">🚀</span><span class="btn-text">Disparar Análise da Mesa</span>`;
+  if (isDemoAmbiente) {
+    btn.innerHTML = `<span class="btn-icon">👁️</span><span class="btn-text">Visualizar Demonstração</span>`;
+  } else {
+    btn.innerHTML = `<span class="btn-icon">🚀</span><span class="btn-text">Disparar Análise da Mesa</span>`;
+  }
 }
 
 function resetarAgentes() {

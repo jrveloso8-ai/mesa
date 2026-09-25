@@ -6,6 +6,7 @@ visualizar gráficos dinâmicos de Candlesticks e Payoff de Opções, e baixar r
 
 import sys
 import os
+import re
 import glob
 import threading
 import queue
@@ -16,8 +17,8 @@ if hasattr(sys.stdout, "reconfigure"):
 if hasattr(sys.stderr, "reconfigure"):
     sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
-from typing import Dict, Any, List
-from fastapi import FastAPI, BackgroundTasks
+from typing import Dict, Any, List, Optional
+from fastapi import FastAPI, BackgroundTasks, Header, HTTPException, Query
 from fastapi.responses import HTMLResponse, FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from dotenv import load_dotenv
@@ -30,6 +31,18 @@ if google_key:
     os.environ["GOOGLE_API_KEY"] = google_key
     os.environ["GEMINI_API_KEY"] = google_key
 
+# Configurações de Ambiente e Segurança
+IS_VERCEL = bool(os.getenv("VERCEL") or os.getenv("VERCEL_ENV"))
+AMBIENTE_NOME = "DEMO_CLOUD_VERCEL" if IS_VERCEL else "OPERACIONAL_LOCAL"
+MESA_API_KEY = (os.getenv("MESA_API_KEY") or "").strip()
+
+# Lock de concorrência para proteção de estado compartilhado
+estado_lock = threading.Lock()
+
+# Cache em memória para requisições de cotação técnica (proteção contra DoS e estouro de cota BRAPI)
+cache_dados_tecnicos: Dict[str, Dict[str, Any]] = {}
+CACHE_TTL_SEGUNDOS = 120.0
+
 try:
     from crew import MesaOperacoesCrew
 except ImportError:
@@ -41,7 +54,7 @@ from tools.risk_gate import (
     extrair_decisao_risco_autentica,
     extrair_rr_efetivo
 )
-from tools.brapi_tools import consultar_dados_tecnicos_e_medias
+from tools.brapi_tools import consultar_dados_tecnicos_e_medias, CESTA_LIQUIDEZ_B3
 from tools.options_tools import calcular_payoff_trava_alta
 from schemas.output_models import DecisaoRiscoModel
 
@@ -67,15 +80,25 @@ estado_execucao = {
     },
     "pdf_path": None,
     "erro": None,
+    "is_demo": IS_VERCEL,
+    "ambiente": AMBIENTE_NOME,
+    "aviso_ambiente": (
+        "Ambiente de Demonstração Institucional (Vercel Serverless). "
+        "A esteira completa com 6 agentes autônomos e chamadas ilimitadas em tempo real "
+        "roda no servidor local da Mesa (iniciar_mesa.bat)."
+        if IS_VERCEL else
+        "Servidor Operacional Local com IA Multiagente e Conexão em Tempo Real."
+    )
 }
 
 
 def adicionar_log(mensagem: str):
-    timestamp = time.strftime("%H:%M:%S")
-    entrada = f"[{timestamp}] {mensagem}"
-    estado_execucao["logs"].append(entrada)
-    if len(estado_execucao["logs"]) > 300:
-        estado_execucao["logs"].pop(0)
+    with estado_lock:
+        timestamp = time.strftime("%H:%M:%S")
+        entrada = f"[{timestamp}] {mensagem}"
+        estado_execucao["logs"].append(entrada)
+        if len(estado_execucao["logs"]) > 300:
+            estado_execucao["logs"].pop(0)
 
 
 def carregar_ultimo_resultado_salvo():
@@ -199,54 +222,57 @@ def executar_esteira_background():
         adicionar_log("🚀 Iniciando esteira autônoma da Mesa de Operações B3...")
         adicionar_log("🌐 [Fase 1/6] Analista Macro varrendo notícias, Selic, Fed e pré-selecionando ativos...")
 
-        if MesaOperacoesCrew is None or os.getenv("VERCEL"):
-            time.sleep(0.4)
-            adicionar_log("🌐 [Fase 1/6 Concluída] Analista Macro definiu viés com política de juros do Copom.")
+        if MesaOperacoesCrew is None or IS_VERCEL:
+            adicionar_log("ℹ️ [MODO DEMONSTRAÇÃO VERCEL] Apresentando pipeline executivo e caso auditado...")
+            time.sleep(0.3)
+            adicionar_log("🌐 [DEMO - Fase 1/6] Analista Macro: Apresentação da diretriz macroeconômica e juros Selic.")
             estado_execucao["etapa_atual"] = 2
             estado_execucao["agente_ativo"] = "Fundamentalista"
             estado_execucao["progresso_pct"] = 35
-            time.sleep(0.4)
-            adicionar_log("📊 [Fase 2/6 Concluída] Analista Fundamentalista auditou múltiplos e balanços via BRAPI.")
+            time.sleep(0.3)
+            adicionar_log("📊 [DEMO - Fase 2/6] Analista Fundamentalista: Demonstração da triagem de múltiplos na Cesta B3.")
             estado_execucao["etapa_atual"] = 3
             estado_execucao["agente_ativo"] = "Analista Técnico"
             estado_execucao["progresso_pct"] = 55
-            time.sleep(0.4)
-            adicionar_log("📈 [Fase 3/6 Concluída] Analista Técnico CNPI-T calculou médias SMA20/50 e RSI-14.")
+            time.sleep(0.3)
+            adicionar_log("📈 [DEMO - Fase 3/6] Analista Técnico CNPI-T: Médias SMA20/50 e RSI-14 de referência.")
             estado_execucao["etapa_atual"] = 4
             estado_execucao["agente_ativo"] = "Estrategista de Opções"
             estado_execucao["progresso_pct"] = 75
-            time.sleep(0.4)
-            adicionar_log("⚡ [Fase 4/6 Concluída] Estrategista formulou trava de alta e gregas Black-Scholes.")
+            time.sleep(0.3)
+            adicionar_log("⚡ [DEMO - Fase 4/6] Estrategista de Opções: Modelagem de trava e gregas Black-Scholes.")
             estado_execucao["etapa_atual"] = 5
             estado_execucao["agente_ativo"] = "Coordenador de Risco"
             estado_execucao["progresso_pct"] = 90
-            time.sleep(0.4)
-            adicionar_log("🛡️ [Fase 5/6 Concluída] Coordenador de Risco auditou R/R: 1.44 < 1.50 -> Veto acionado.")
+            time.sleep(0.3)
+            adicionar_log("🛡️ [DEMO - Fase 5/6] Gate de Risco Programático: Sarrafo R/R 1.44 < 1.50 -> Veto institucional acionado.")
             estado_execucao["etapa_atual"] = 6
             estado_execucao["agente_ativo"] = "Research Publisher"
             estado_execucao["progresso_pct"] = 98
 
             from schemas.output_models import RelatorioExecutivoFinal, ItemParametro, GregasOpcoesModel
             relatorio = RelatorioExecutivoFinal(
-                titulo="Parecer de Risco - Veto de Trava de Alta (PETR4)",
+                titulo="Parecer de Risco - Veto de Trava de Alta (PETR4) [DEMO ILUSTRATIVA]",
                 ativo_alvo="PETR4",
                 operacao_recomendada="Manutenção em Caixa / Veto Preventivo",
                 resumo_executivo=(
-                    "A análise da Cesta de Liquidez B3 selecionou PETR4 por volume e múltiplos. "
-                    "Contudo, a estrutura simulada de trava apresentou relação Risco/Retorno de 1.44:1, "
-                    "inferior ao piso regulamentar de 1.50:1, acionando veto prudencial de capital."
+                    "[DEMONSTRAÇÃO DE FLUXO INSTITUCIONAL] Caso de referência auditado da Cesta de Liquidez B3. "
+                    "A estrutura de opções simulada apresentou relação Risco/Retorno de 1.44:1, "
+                    "inferior ao piso regulamentar de 1.50:1, demonstrando a atuação do Veto Programático de Código. "
+                    "Para análise autônoma ao vivo com os 6 agentes de IA, execute via 'iniciar_mesa.bat' no servidor local."
                 ),
                 status_decisao="REPROVADO_TOTAL",
                 razao_risco_retorno_num=1.44,
                 parametros_operacionais=[
                     ItemParametro(parametro="Ativo Objeto", valor="PETR4"),
+                    ItemParametro(parametro="Ambiente", valor="Demonstração Cloud (Vercel)"),
                     ItemParametro(parametro="Estratégia", valor="Manutenção em Caixa"),
                     ItemParametro(parametro="Relação R/R Calculada", valor="1.44 : 1 (Abaixo de 1.50:1)"),
                     ItemParametro(parametro="Veredito do Gate", valor="VETADO NO RISCO"),
                 ],
                 gregas=GregasOpcoesModel(delta=0.0, gamma=0.0, theta=0.0, vega=0.0),
                 gestao_risco_e_saida="Preservação total de capital. Aguardar expansão de spread para R/R > 1.8:1.",
-                disclaimer_cvm="Relatório em conformidade com a Resolução CVM nº 20/2021."
+                disclaimer_cvm="Relatório em conformidade com a Resolução CVM nº 20/2021. Demonstração de arquitetura."
             )
             resultado_crew = relatorio
         else:
@@ -472,7 +498,8 @@ def executar_esteira_background():
 
 @app.get("/api/status")
 def obter_status():
-    return JSONResponse(estado_execucao)
+    with estado_lock:
+        return JSONResponse(dict(estado_execucao))
 
 
 @app.get("/api/ranking")
@@ -482,6 +509,8 @@ def obter_ranking():
     stats = obter_estatisticas_funil(ranking)
     return JSONResponse({
         "status": "sucesso",
+        "tipo_base": "estatica_referencia",
+        "nota_auditoria": "Dataset estático do IBrX-100 para triagem offline rápida. A esteira em tempo real valida e consome ativos prioritários da CESTA_LIQUIDEZ_B3.",
         "total": len(ranking),
         "estatisticas": stats,
         "ranking": ranking
@@ -490,10 +519,43 @@ def obter_ranking():
 
 @app.get("/api/ativo/{ticker}")
 def obter_dados_ativo(ticker: str):
-    ticker = ticker.upper().strip()
+    ticker_clean = ticker.upper().strip()
+    
+    # Validação e sanitização estrita do formato do ticker (B3 padrão: ex PETR4, VALE3)
+    if not re.match(r"^[A-Z0-9]{4,6}$", ticker_clean):
+        return JSONResponse(
+            {
+                "status": "erro",
+                "mensagem": "Formato de ticker inválido. Use formato padrão B3 (ex: PETR4, VALE3)."
+            },
+            status_code=400
+        )
+
+    # Proteção de cota e DoS: apenas ativos aprovados na cesta de alta liquidez são consultados na API pública
+    if ticker_clean not in CESTA_LIQUIDEZ_B3:
+        return JSONResponse(
+            {
+                "status": "erro",
+                "mensagem": f"Ticker '{ticker_clean}' não autorizado na API pública. Ativos disponíveis na cesta de liquidez: {', '.join(CESTA_LIQUIDEZ_B3)}",
+                "ativos_permitidos": list(CESTA_LIQUIDEZ_B3)
+            },
+            status_code=403
+        )
+
+    # Verificação de Cache em Memória com TTL de 120s
+    agora = time.time()
+    with estado_lock:
+        if ticker_clean in cache_dados_tecnicos:
+            item_cache = cache_dados_tecnicos[ticker_clean]
+            if agora - item_cache["timestamp"] < CACHE_TTL_SEGUNDOS:
+                dados_em_cache = dict(item_cache["dados"])
+                dados_em_cache["origem"] = "cache_memoria"
+                dados_em_cache["ttl_restante"] = int(CACHE_TTL_SEGUNDOS - (agora - item_cache["timestamp"]))
+                return JSONResponse(dados_em_cache)
+
     try:
         fn_tecnica = getattr(consultar_dados_tecnicos_e_medias, "func", consultar_dados_tecnicos_e_medias)
-        dados = fn_tecnica(ticker)
+        dados = fn_tecnica(ticker_clean)
         candles_raw = dados.get("candles_recentes", []) if isinstance(dados, dict) else []
         import datetime as dt
         candles_fmt = []
@@ -526,9 +588,10 @@ def obter_dados_ativo(ticker: str):
             premio_recebido_venda=0.30
         )
 
-        return JSONResponse({
+        resultado = {
             "status": "sucesso",
-            "ativo": ticker,
+            "ativo": ticker_clean,
+            "origem": "api_tempo_real",
             "preco_atual": preco_atual,
             "suporte": suporte,
             "resistencia": resistencia,
@@ -542,28 +605,62 @@ def obter_dados_ativo(ticker: str):
             "debito": debito,
             "breakeven": payoff_data.get("breakeven", strike_compra + debito),
             "payoff": payoff_data.get("pontos_curva_payoff", [])
-        })
+        }
+
+        # Armazenar no cache com proteção de concorrência
+        with estado_lock:
+            cache_dados_tecnicos[ticker_clean] = {
+                "timestamp": agora,
+                "dados": resultado
+            }
+
+        return JSONResponse(resultado)
     except Exception as e:
-        return JSONResponse({"status": "erro", "mensagem": str(e), "ativo": ticker}, status_code=500)
-
-
+        return JSONResponse({"status": "erro", "mensagem": str(e), "ativo": ticker_clean}, status_code=500)
 
 
 @app.post("/api/iniciar")
-def iniciar_processamento(background_tasks: BackgroundTasks):
-    if estado_execucao["status"] == "executando":
-        return JSONResponse({"status": "aviso", "mensagem": "A esteira já está em execução."})
+def iniciar_processamento(
+    background_tasks: BackgroundTasks,
+    x_api_key: Optional[str] = Header(None, alias="X-API-KEY"),
+    key: Optional[str] = Query(None)
+):
+    # Proteção de autenticação: Se MESA_API_KEY estiver configurada, exige chave válida
+    if MESA_API_KEY:
+        chave_fornecida = (x_api_key or key or "").strip()
+        if chave_fornecida != MESA_API_KEY:
+            return JSONResponse(
+                {
+                    "status": "erro",
+                    "mensagem": "Acesso não autorizado. Chave de API MESA_API_KEY ausente ou inválida."
+                },
+                status_code=401
+            )
 
-    estado_execucao["status"] = "executando"
-    if os.getenv("VERCEL"):
-        # Em ambiente Serverless (Vercel), executa diretamente para evitar congelamento de threads
+    with estado_lock:
+        if estado_execucao["status"] == "executando":
+            return JSONResponse({"status": "aviso", "mensagem": "A esteira já está em execução."})
+        estado_execucao["status"] = "executando"
+
+    if IS_VERCEL:
+        # Em ambiente Serverless (Vercel), executa o fluxo demonstrativo transparente
         executar_esteira_background()
-        return JSONResponse({"status": "concluido", "mensagem": "Esteira processada com sucesso no Vercel."})
+        return JSONResponse({
+            "status": "concluido",
+            "ambiente": AMBIENTE_NOME,
+            "is_demo": True,
+            "mensagem": "Demonstração institucional executada com sucesso no Vercel Serverless."
+        })
     else:
         thread = threading.Thread(target=executar_esteira_background)
         thread.daemon = True
         thread.start()
-        return JSONResponse({"status": "iniciado", "mensagem": "Esteira multiagente iniciada com sucesso."})
+        return JSONResponse({
+            "status": "iniciado",
+            "ambiente": AMBIENTE_NOME,
+            "is_demo": False,
+            "mensagem": "Esteira multiagente com IA iniciada com sucesso em segundo plano."
+        })
 
 
 @app.get("/api/download/pdf")

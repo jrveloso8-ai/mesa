@@ -65,7 +65,18 @@ def gerar_pdf_relatorio(
     Gera o arquivo PDF executivo formatado da operação recomendada.
     O status reflete dinamicamente a decisão do Comitê de Risco (APROVADO ou REPROVADO).
     """
-    os.makedirs(os.path.dirname(caminho_saida) or ".", exist_ok=True)
+    # Ajuste de caminho para ambientes somente-leitura (ex: Vercel Serverless / Lambda)
+    dir_saida = os.path.dirname(caminho_saida) or "."
+    try:
+        os.makedirs(dir_saida, exist_ok=True)
+        teste_path = os.path.join(dir_saida, f".test_w_{os.getpid()}")
+        with open(teste_path, "w") as f:
+            f.write("1")
+        os.remove(teste_path)
+    except (OSError, PermissionError):
+        dir_tmp = "/tmp/output" if os.path.exists("/tmp") else os.path.join(os.path.expanduser("~"), "tmp_mesa")
+        os.makedirs(dir_tmp, exist_ok=True)
+        caminho_saida = os.path.join(dir_tmp, os.path.basename(caminho_saida))
 
     pdf = RelatorioExecutivoPDF(orientation="P", unit="mm", format="A4")
     pdf.alias_nb_pages()
@@ -216,5 +227,12 @@ def gerar_pdf_relatorio(
     )
     pdf.multi_cell(186, 3.2, sanitizar_texto(disclaimer))
 
-    pdf.output(caminho_saida)
+    try:
+        pdf.output(caminho_saida)
+    except (OSError, PermissionError):
+        dir_tmp = "/tmp/output" if os.path.exists("/tmp") else os.path.join(os.path.expanduser("~"), "tmp_mesa")
+        os.makedirs(dir_tmp, exist_ok=True)
+        caminho_saida = os.path.join(dir_tmp, os.path.basename(caminho_saida))
+        pdf.output(caminho_saida)
+
     return os.path.abspath(caminho_saida)

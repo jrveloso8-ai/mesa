@@ -371,21 +371,32 @@ def executar_esteira_background():
 
         # Coleta de Dados Reais de Gráficos (Candlesticks da BRAPI e Payoff)
         adicionar_log(f"📈 Carregando dados técnicos reais e histórico de candles para {ativo}...")
-        dados_tecnicos = consultar_dados_tecnicos_e_medias.func(ativo)
+        try:
+            fn_tecnica = getattr(consultar_dados_tecnicos_e_medias, "func", consultar_dados_tecnicos_e_medias)
+            dados_tecnicos = fn_tecnica(ativo)
+        except Exception as e_tec:
+            dados_tecnicos = {}
+            adicionar_log(f"Aviso dados técnicos: {str(e_tec)}")
+
         candles = dados_tecnicos.get("candles_recentes", []) if isinstance(dados_tecnicos, dict) else []
         suporte_val = dados_tecnicos.get("suporte_recente", 0.0) if isinstance(dados_tecnicos, dict) else 0.0
         resistencia_val = dados_tecnicos.get("resistencia_recente", 0.0) if isinstance(dados_tecnicos, dict) else 0.0
 
         # Curva de Payoff de Opções
-        spot_atual = dados_tecnicos.get("preco_atual", 40.0) if isinstance(dados_tecnicos, dict) else 40.0
+        spot_atual = dados_tecnicos.get("preco_atual", 48.0) if isinstance(dados_tecnicos, dict) and dados_tecnicos.get("preco_atual") else 48.0
         k_compra = round(spot_atual * 0.98, 1)
         k_venda = round(spot_atual * 1.04, 1)
-        payoff_data = calcular_payoff_trava_alta.func(
-            strike_compra=k_compra,
-            premio_pago_compra=1.60,
-            strike_venda=k_venda,
-            premio_recebido_venda=0.50
-        )
+        try:
+            fn_payoff = getattr(calcular_payoff_trava_alta, "func", calcular_payoff_trava_alta)
+            payoff_data = fn_payoff(
+                strike_compra=k_compra,
+                premio_pago_compra=1.60,
+                strike_venda=k_venda,
+                premio_recebido_venda=0.50
+            )
+        except Exception as e_pay:
+            payoff_data = {}
+            adicionar_log(f"Aviso cálculo payoff: {str(e_pay)}")
         pontos_payoff = payoff_data.get("pontos_curva_payoff", []) if isinstance(payoff_data, dict) else []
 
         estado_execucao["graficos"] = {
@@ -413,7 +424,15 @@ def executar_esteira_background():
 
         # Geração do Relatório PDF com Status Dinâmico Real
         data_str = time.strftime("%Y%m%d_%H%M%S")
-        pdf_path = f"output/relatorio_operacao_{data_str}.pdf"
+        if os.getenv("VERCEL") or not os.access(".", os.W_OK):
+            pasta_dest = "/tmp/output"
+        else:
+            pasta_dest = "output"
+        try:
+            os.makedirs(pasta_dest, exist_ok=True)
+        except Exception:
+            pasta_dest = "/tmp"
+        pdf_path = os.path.join(pasta_dest, f"relatorio_operacao_{data_str}.pdf")
 
         arquivo_gerado = gerar_pdf_relatorio(
             titulo=titulo,
@@ -535,11 +554,16 @@ def iniciar_processamento(background_tasks: BackgroundTasks):
     if estado_execucao["status"] == "executando":
         return JSONResponse({"status": "aviso", "mensagem": "A esteira já está em execução."})
 
-    thread = threading.Thread(target=executar_esteira_background)
-    thread.daemon = True
-    thread.start()
-
-    return JSONResponse({"status": "iniciado", "mensagem": "Esteira multiagente iniciada com sucesso."})
+    estado_execucao["status"] = "executando"
+    if os.getenv("VERCEL"):
+        # Em ambiente Serverless (Vercel), executa diretamente para evitar congelamento de threads
+        executar_esteira_background()
+        return JSONResponse({"status": "concluido", "mensagem": "Esteira processada com sucesso no Vercel."})
+    else:
+        thread = threading.Thread(target=executar_esteira_background)
+        thread.daemon = True
+        thread.start()
+        return JSONResponse({"status": "iniciado", "mensagem": "Esteira multiagente iniciada com sucesso."})
 
 
 @app.get("/api/download/pdf")
@@ -552,15 +576,17 @@ def baixar_pdf():
             filename=os.path.basename(pdf_path)
         )
 
-    # Fallback: procura o último PDF na pasta output
-    arquivos_pdf = glob.glob("output/*.pdf")
-    if arquivos_pdf:
-        ultimo_pdf = max(arquivos_pdf, key=os.path.getmtime)
-        return FileResponse(
-            ultimo_pdf,
-            media_type="application/pdf",
-            filename=os.path.basename(ultimo_pdf)
-        )
+    # Fallback: procura o último PDF gerado em pastas graváveis
+    pastas = ["/tmp/output", "/tmp", "output"]
+    for pasta in pastas:
+        arquivos_pdf = glob.glob(f"{pasta}/*.pdf")
+        if arquivos_pdf:
+            ultimo_pdf = max(arquivos_pdf, key=os.path.getmtime)
+            return FileResponse(
+                ultimo_pdf,
+                media_type="application/pdf",
+                filename=os.path.basename(ultimo_pdf)
+            )
 
     return JSONResponse({"erro": "Nenhum relatório PDF disponível no momento."}, status_code=404)
 

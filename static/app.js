@@ -134,6 +134,11 @@ async function iniciarAnalise() {
     resetarAgentes();
     trocarAba('deliberacao');
 
+    if (data.status === "concluido") {
+      await verificarStatus();
+      return;
+    }
+
     if (!pollingInterval) {
       pollingInterval = setInterval(verificarStatus, 1500);
     }
@@ -174,7 +179,8 @@ async function verificarStatus() {
     } else if (data.status === "erro") {
       if (timerAnimacaoProgresso) clearInterval(timerAnimacaoProgresso);
       atualizarPill("error", "Erro na Execução");
-      atualizarProgresso(0, "Ocorreu uma falha na execução da esteira.");
+      const detalheErro = data.erro ? `Falha: ${data.erro}` : "Ocorreu uma falha na execução da esteira.";
+      atualizarProgresso(0, detalheErro);
       resetarBotao();
       clearInterval(pollingInterval);
       pollingInterval = null;

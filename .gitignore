@@ -38,3 +38,5 @@ htmlcov/
 output/*.pdf
 output/relatorio_*.md
 !output/.gitkeep
+
+.vercel

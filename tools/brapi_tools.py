@@ -8,7 +8,19 @@ import os
 import math
 import requests
 from typing import Dict, Any, List, Optional
-from crewai.tools import tool
+
+try:
+    from crewai.tools import tool
+except ImportError:
+    def tool(*args, **kwargs):
+        def decorator(f):
+            f.func = f
+            return f
+        if len(args) == 1 and callable(args[0]):
+            f = args[0]
+            f.func = f
+            return f
+        return decorator
 
 # Cesta curada de alta liquidez da B3 (Top 10 componentes em volume de opções do IBrX-100)
 CESTA_LIQUIDEZ_B3 = ["PETR4", "VALE3", "ITUB4", "BBDC4", "BBAS3", "ABEV3", "B3SA3", "WEGE3", "RENT3", "SUZB3"]

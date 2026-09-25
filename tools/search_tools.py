@@ -4,8 +4,24 @@ Sem necessidade de chave de API adicional.
 """
 
 from typing import Dict, Any, List
-from crewai.tools import tool
-from duckduckgo_search import DDGS
+
+try:
+    from crewai.tools import tool
+except ImportError:
+    def tool(*args, **kwargs):
+        def decorator(f):
+            f.func = f
+            return f
+        if len(args) == 1 and callable(args[0]):
+            f = args[0]
+            f.func = f
+            return f
+        return decorator
+
+try:
+    from duckduckgo_search import DDGS
+except ImportError:
+    DDGS = None
 
 
 @tool("pesquisar_noticias_macro_e_commodities")
@@ -16,6 +32,8 @@ def pesquisar_noticias_macro_e_commodities(termo_pesquisa: str) -> Dict[str, Any
     - termo_pesquisa: Termos objetivos para busca (ex: 'Copom juros Selic decisão B3', 'Petróleo Brent cotação hoje', 'Vale minerio de ferro china')
     """
     try:
+        if DDGS is None:
+            raise RuntimeError("Módulo de pesquisa web não instalado no ambiente.")
         ddgs = DDGS()
         results: List[Dict[str, str]] = []
         # Limita a 4 resultados para manter concisão e economia de tokens

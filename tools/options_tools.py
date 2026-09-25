@@ -7,7 +7,19 @@ Chaves alinhadas com os modelos Pydantic e geradores de relatórios PDF.
 import os
 import math
 from typing import Dict, Any, Optional
-from crewai.tools import tool
+
+try:
+    from crewai.tools import tool
+except ImportError:
+    def tool(*args, **kwargs):
+        def decorator(f):
+            f.func = f
+            return f
+        if len(args) == 1 and callable(args[0]):
+            f = args[0]
+            f.func = f
+            return f
+        return decorator
 
 
 def _norm_cdf(x: float) -> float:

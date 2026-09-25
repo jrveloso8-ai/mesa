@@ -1,0 +1,73 @@
+analisar_macro_e_mercado_task:
+  description: >
+    1. Pesquisar notícias e dados recentes sobre a economia brasileira e internacional: juros Selic/Copom, inflação, dólar e commodities (Petróleo e Minério).
+    2. Consultar a Cesta de Liquidez B3 (Top 10 do IBrX-100 em volume) disponível.
+    3. Definir o viés macroeconômico atual (Otimista, Cauteloso ou Pessimista) e indicar de 2 a 3 ativos da cesta mais promissores para o momento.
+  expected_output: >
+    Objeto estruturado com o viés geral, gatilhos macroeconômicos observados, setores em destaque e a lista de 2 a 3 ativos candidatos da cesta de liquidez B3.
+  agent: macro_analyst
+
+selecionar_ativo_fundamentalista_task:
+  description: >
+    1. Receber os 2 a 3 ativos candidatos indicados pelo Analista Macro.
+    2. Utilizar a ferramenta da BRAPI para consultar os múltiplos e demonstrativos de cada candidato (P/L, P/VP, ROE, Margem Líquida, Dívida Líquida/EBITDA, EV/EBITDA).
+    3. Aplicar o Checklist Objetivo de Confluência CG1 (Valuation Fundamentalista):
+       (a) Criação de Valor: ROIC > WACC (se ROIC < WACC, veredito é 'ruim', value trap).
+       (b) Endividamento Saudável: Dívida Líquida/EBITDA < 3.0x (ou Dívida Líq/PL < 1.0x para empresas sem EBITDA).
+       (c) Cobertura de Juros: EBIT / Despesa Financeira > 2.0x (ideal > 4.0x).
+       (d) Qualidade de Earnings: Fluxo de Caixa Operacional consistente com o Lucro Líquido, sem distorção por não-recorrentes.
+       (e) Crescimento de Receita consistente em pelo menos 3 dos últimos 5 anos.
+       (f) Valuation Relativo: múltiplos atrativos frente à média histórica de 3-5 anos ou com desconto frente aos pares do setor.
+    4. Aplicar a Regra de Exceção: se ROIC < WACC -> 'ruim'; se qualidade de earnings falhar -> no máximo 'neutro'.
+    5. Selecionar O MELHOR ativo que cumpra os critérios de solidez, fundamentando a escolha com dados auditados.
+  expected_output: >
+    Objeto estruturado com o ticker escolhido, preço atual, resumo dos múltiplos auditados, diagnóstico de criação de valor (ROIC vs WACC) e justificativa fundamentalista conclusiva.
+  agent: fundamentalist_analyst
+
+validar_timing_grafico_task:
+  description: >
+    1. Para o ativo eleito pelo Analista Fundamentalista, consultar o histórico de preços, médias móveis (SMA20 e SMA50) e RSI-14 via BRAPI.
+    2. Identificar a tendência principal pela Teoria de Dow (topos e fundos ascendentes/descendentes) e mapear suportes e resistências recentes (swing highs/lows).
+    3. Aplicar rigorosamente o Checklist Objetivo CNPI-T de 5 itens:
+       (a) Tendência definida de alta ou consolidação em acumulação (nunca em tendência de baixa confirmada).
+       (b) Posição próxima a suporte de referência (3-5% acima), nunca colado em resistência sem rompimento.
+       (c) Confirmação de volume (ou persistência de 2-3 fechamentos consecutivos na direção).
+       (d) Pelo menos dois indicadores concordando (ex: preço acima da SMA20/50 e RSI-14 fora de sobrecompra extrema >70).
+       (e) Sem gap contra a tendência não preenchido.
+    4. Determinar o veredito técnico: se todos os 5 critérios passarem -> 'bom'; se qualquer um falhar -> 'aguardar'; se tendência de baixa -> 'baixa'.
+    5. Definir o preço de entrada ideal, o Stop Loss Técnico estrito (abaixo do suporte de referência ou 1x ATR) e o nível de invalidação da leitura.
+  expected_output: >
+    Objeto estruturado com o ticker, tendência técnica, suporte, resistência, RSI-14, sinal_timing (bom, aguardar ou baixa), preço de entrada sugerido e stop loss técnico.
+  agent: technical_analyst
+
+estruturar_estrategias_operacao_task:
+  description: >
+    1. Com base na tese fundamentalista e nos níveis gráficos de entrada, suporte e resistência, estruturar a operação prática da mesa.
+    2. Avaliar se o melhor veículo é Ações (Swing Trade) ou Estratégia de Opções na B3 (Trava de Alta com Call ou Venda Coberta).
+    3. Se utilizar opções: aplicar a regra estrita de vencimentos mensais (3ª sexta-feira do mês) e calcular deterministamente as gregas (Delta, Gamma, Theta, Vega) via Black-Scholes e os custos/payoffs.
+    4. Calcular deterministamente a relação Risco/Retorno e a perda máxima potencial, preenchendo obrigatoriamente razao_risco_retorno_num como float puro (ex: 2.15).
+    5. Estruturar obrigatoriamente UMA ESTRATÉGIA PRINCIPAL e UMA ESTRATÉGIA ALTERNATIVA de menor risco para contingência.
+  expected_output: >
+    Objeto estruturado contendo a proposta completa com estratégia principal, estratégia alternativa de menor risco, gregas calculadas, lucros, perdas e razao_risco_retorno_num como float numérico.
+  agent: senior_strategist
+
+auditar_risco_e_aprovar_task:
+  description: >
+    1. Auditar tecnicamente a proposta do estrategista: verificar relação risco/retorno (mínimo obrigatório 1.5:1), clareza do stop loss e se a regra de vencimentos mensais foi respeitada.
+    2. Se a estratégia principal estiver adequada e com R/R >= 1.5, emitir 'APROVADO_PRINCIPAL' e preencher razao_risco_retorno_auditada (float).
+    3. Se a estratégia principal tiver risco elevado mas a alternativa estiver prudente com R/R >= 1.5, emitir 'APROVADO_ALTERNATIVA'.
+    4. Caso ambas apresentem riscos inaceitáveis ou R/R < 1.5, emitir 'REPROVADO_TOTAL' e aprovado_para_divulgacao=False com o parecer de recomendação de aguardar no caixa.
+  expected_output: >
+    Objeto estruturado com o status da decisão, qual estratégia foi aprovada, razao_risco_retorno_auditada (float), parecer prudencial detalhado e pontos de atenção.
+  agent: risk_coordinator
+
+gerar_relatorio_executivo_investidor_task:
+  description: >
+    1. Coletar os dados da decisão oficial do Coordenador de Risco e redigir o Resumo Executivo Formal direcionado ao investidor final.
+    2. Reproduzir fielmente o status_decisao e a razao_risco_retorno_num auditada pelo comitê de risco.
+    3. Apresentar de forma didática a tese de investimento, a operação, a tabela com os parâmetros operacionais (entrada, alvo, stop, gregas e R/R) e o plano de gestão de risco.
+    4. Incluir de forma obrigatória o aviso legal e regulatório da Resolução CVM nº 20/2021.
+  expected_output: >
+    Documento executivo final estruturado com todos os dados da recomendação, pronto para exibição e geração do PDF oficial.
+  agent: research_publisher
+

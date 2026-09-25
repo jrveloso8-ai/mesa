@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Apresentação do Processo & Arquitetura Multiagente | Mesa de Operações B3</title>
+  <meta name="description" content="Apresentação institucional completa da Mesa de Operações B3: pipeline autônomo multiagente, precificação Black-Scholes, auditoria de 100 ativos do IBrX-100 e governança de risco com veto programático.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="apresentacao.css">
+</head>
+<body>
+  <div class="app-background"></div>
+
+  <!-- Barra de Navegação -->
+  <header class="nav-header">
+    <div class="nav-container">
+      <a href="/" class="nav-brand">
+        <div class="brand-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+          </svg>
+        </div>
+        <div class="brand-title">MESA DE OPERAÇÕES <span>B3</span></div>
+      </a>
+
+      <nav>
+        <ul class="nav-links">
+          <li><a href="#visao-geral">Visão Geral</a></li>
+          <li><a href="#workflow-video">Demonstração</a></li>
+          <li><a href="#fluxo-processo">Funil de 6 Fases</a></li>
+          <li><a href="#fases-detalhadas">Especialistas</a></li>
+          <li><a href="#comparativo">Diferenciais</a></li>
+        </ul>
+      </nav>
+
+      <a href="/" class="btn-terminal" id="btnIrTerminal">
+        <span>⚡</span> Acessar Terminal Operacional
+      </a>
+    </div>
+  </header>
+
+  <main class="content-wrapper">
+    <!-- Hero Section -->
+    <section class="hero-section" id="visao-geral">
+      <div class="hero-pill">
+        <span>✦</span> Esteira Institucional de Inteligência Artificial & Derivativos
+      </div>
+      <h1 class="hero-title">
+        Engenharia Multiagente Autônoma para <br>
+        <span class="gradient-text">Decisões de Alta Precisão na B3</span>
+      </h1>
+      <p class="hero-desc">
+        Uma arquitetura proprietária baseada em agentes especializados inspirada nas mesas institucionais de bancos globais. 
+        Triagem automatizada dos <strong>100 ativos do IBrX-100</strong>, cálculo determinístico de Gregas via <strong>Black-Scholes</strong>, 
+        governança de risco programática com <strong>veto automático em código</strong> e relatórios executivos em conformidade estrita com a <strong>Resolução CVM nº 20/2021</strong>.
+      </p>
+
+      <!-- Grid de Métricas Principais -->
+      <div class="hero-stats-row">
+        <div class="hero-stat-card">
+          <span class="hero-stat-number">100</span>
+          <span class="hero-stat-label">Ativos IBrX-100</span>
+          <span class="hero-stat-sub">Varredura integral do índice</span>
+        </div>
+        <div class="hero-stat-card">
+          <span class="hero-stat-number">6</span>
+          <span class="hero-stat-label">Especialistas em Pipeline</span>
+          <span class="hero-stat-sub">Atuação sequencial encadeada</span>
+        </div>
+        <div class="hero-stat-card">
+          <span class="hero-stat-number">&ge; 1.50 : 1</span>
+          <span class="hero-stat-label">Sarrafo de Risco/Retorno</span>
+          <span class="hero-stat-sub">Veto programático em código</span>
+        </div>
+        <div class="hero-stat-card">
+          <span class="hero-stat-number">CVM 20</span>
+          <span class="hero-stat-label">Compliance Regulatório</span>
+          <span class="hero-stat-sub">PDF executivo oficial de 1 via</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Seção de Demonstração em Vídeo -->
+    <section class="video-section" id="workflow-video">
+      <span class="section-tag">FLUXO EM TEMPO REAL &middot; SHOWCASE INSTITUCIONAL</span>
+      <h2 class="section-title">Demonstração da Esteira Operacional em Ação</h2>
+      <p class="section-desc">
+        Veja na prática o funcionamento da esteira multiagente: processamento de dados da bolsa, acionamento sequencial dos agentes, simulação de curvas de payoff de derivativos e deliberação do comitê de risco.
+      </p>
+
+      <div class="video-player-container">
+        <video controls poster="midia/analista_macro.jpg" playsinline preload="metadata">
+          <source src="midia/workflow_demo.mp4" type="video/mp4">
+          Seu navegador não suporta reprodução de vídeos HTML5.
+        </video>
+      </div>
+
+      <div class="video-highlights">
+        <div class="highlight-box">
+          <span class="highlight-icon">⚡</span>
+          <div class="highlight-content">
+            <h4>Execução Assíncrona Ultrarrápida</h4>
+            <p>Arquitetura em background com FastAPI e Uvicorn, permitindo monitoramento via logs dinâmicos e atualização de status em tempo real.</p>
+          </div>
+        </div>
+        <div class="highlight-box">
+          <span class="highlight-icon">📡</span>
+          <div class="highlight-content">
+            <h4>Proveniência Real de Dados</h4>
+            <p>Integração oficial com a API da BRAPI para cotações e balanços, e DuckDuckGo para varredura de notícias macroeconômicas recentes.</p>
+          </div>
+        </div>
+        <div class="highlight-box">
+          <span class="highlight-icon">🛡️</span>
+          <div class="highlight-content">
+            <h4>Imparcialidade Matemática</h4>
+            <p>Sem palpites nem viés cognitivo. Se a operação violar os limites matemáticos de Risco/Retorno, a IA é sumariamente vetada pelo Gate.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Visão Geral do Funil de Decisão -->
+    <section class="pipeline-roadmap-section" id="fluxo-processo">
+      <div style="text-align: center; max-width: 800px; margin: 0 auto;">
+        <span class="section-tag">ARQUITETURA DO FUNIL INSTITUCIONAL</span>
+        <h2 class="section-title">Como 100 Ativos são Filtrados até a Decisão Final</h2>
+        <p class="section-desc" style="margin: 0 auto;">
+          Nenhum ativo recebe recomendação sem antes ser testado e aprovado em todas as etapas sucessivas da esteira.
+        </p>
+      </div>
+
+      <div class="flow-steps-grid">
+        <div class="flow-step-card">
+          <span class="step-number">01</span>
+          <span class="step-icon">🌐</span>
+          <h3 class="step-title">Macro & Juros</h3>
+          <p class="step-desc">Selic, Copom, inflação e commodities eliminam setores desfavoráveis.</p>
+        </div>
+        <div class="flow-step-card">
+          <span class="step-number">02</span>
+          <span class="step-icon">📊</span>
+          <h3 class="step-title">Fundamentalista</h3>
+          <p class="step-desc">Varredura de P/L, ROE, dívida e geração de caixa dos 100 ativos da B3.</p>
+        </div>
+        <div class="flow-step-card">
+          <span class="step-number">03</span>
+          <span class="step-icon">📈</span>
+          <h3 class="step-title">Técnico & Timing</h3>
+          <p class="step-desc">Médias móveis, volatilidade anualizada real, suportes e alvos técnicos.</p>
+        </div>
+        <div class="flow-step-card">
+          <span class="step-number">04</span>
+          <span class="step-icon">⚡</span>
+          <h3 class="step-title">Derivativos</h3>
+          <p class="step-desc">Black-Scholes nas 3ª sextas-feiras, cálculo de Gregas e payoffs.</p>
+        </div>
+        <div class="flow-step-card">
+          <span class="step-number">05</span>
+          <span class="step-icon">🛡️</span>
+          <h3 class="step-title">Gate de Risco</h3>
+          <p class="step-desc">Auditoria estrita: Risco/Retorno &ge; 1.50:1. Veto automático se reprovado.</p>
+        </div>
+        <div class="flow-step-card">
+          <span class="step-number">06</span>
+          <span class="step-icon">📄</span>
+          <h3 class="step-title">Publisher CVM</h3>
+          <p class="step-desc">Consolidação editorial e PDF oficial com ranking completo de triagem.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Apresentação Detalhada das 6 Fases com Mídias 2K -->
+    <section class="phases-detail-section" id="fases-detalhadas">
+      <div style="text-align: center; max-width: 800px; margin: 0 auto 3.5rem;">
+        <span class="section-tag">ESPECIALISTAS DA MESA &middot; IMAGENS OFICIAIS 2K</span>
+        <h2 class="section-title">O Papel de Cada Fase na Esteira Multiagente</h2>
+        <p class="section-desc" style="margin: 0 auto;">
+          Conheça em profundidade as responsabilidades, ferramentas, regras de corte e modelos matemáticos empregados por cada especialista.
+        </p>
+      </div>
+
+      <!-- FASE 1: ANALISTA MACRO -->
+      <div class="phase-card">
+        <div class="phase-image-container">
+          <img src="midia/analista_macro.jpg" alt="Analista Macro da Mesa de Operações B3" loading="lazy">
+          <div class="phase-image-overlay">
+            <span class="badge-2k">2K OFFICIAL ASSET</span>
+          </div>
+        </div>
+        <div class="phase-info-container">
+          <div class="phase-badge"><span>🌐</span> FASE 01 &middot; ANÁLISE MACRO & SOBERANA</div>
+          <h3 class="phase-heading">Leitura de Cenário Global, Taxa Selic e Risco Soberano</h3>
+          <p class="phase-text">
+            O Analista Macro abre a esteira operando como o primeiro escudo da mesa. Ele realiza a varredura contínua de notícias do mercado financeiro, comunicações do Copom (Banco Central), decisões do FOMC/Fed, projeções de inflação (IPCA), taxas de câmbio (USD/BRL) e cotação de commodities estratégicas (Petróleo Brent e Minério de Ferro).
+          </p>
+
+          <div class="specs-grid">
+            <div class="spec-item">
+              <span class="spec-title">Ferramentas de Varredura</span>
+              <span class="spec-val">DuckDuckGo News & Índices B3</span>
+            </div>
+            <div class="spec-item">
+              <span class="spec-title">Entregável da Fase</span>
+              <span class="spec-val">Regime de Mercado & Cesta Elegível</span>
+            </div>
+          </div>
+
+          <div class="rule-box">
+            <strong>Critério de Corte:</strong> Elimina setores altamente alavancados em ciclos de aperto monetário e veta ativos com alta sensibilidade a ruídos políticos ou choques tarifários.
+          </div>
+        </div>
+      </div>
+
+      <!-- FASE 2: FUNDAMENTALISTA -->
+      <div class="phase-card reverse">
+        <div class="phase-image-container">
+          <img src="midia/fundamentalista.jpg" alt="Analista Fundamentalista e Valuation" loading="lazy">
+          <div class="phase-image-overlay">
+            <span class="badge-2k">2K OFFICIAL ASSET</span>
+          </div>
+        </div>
+        <div class="phase-info-container">
+          <div class="phase-badge"><span>📊</span> FASE 02 &middot; VALUATION & AUDITORIA DE BALANÇOS</div>
+          <h3 class="phase-heading">Varredura Contábil dos 100 Ativos do IBrX-100</h3>
+          <p class="phase-text">
+            O Fundamentalista acessa os demonstrativos oficiais das companhias listadas na bolsa via API oficial da BRAPI. Realiza um escaneamento rigoroso de múltiplos de mercado: Preço sobre Lucro (P/L), Preço sobre Valor Patrimonial (P/VP), Retorno sobre Patrimônio Líquido (ROE), Margem Líquida, Dívida Líquida/EBITDA e geração de Caixa Livre.
+          </p>
+
+          <div class="specs-grid">
+            <div class="spec-item">
+              <span class="spec-title">Fonte de Dados</span>
+              <span class="spec-val">BRAPI Múltiplos Oficiais</span>
+            </div>
+            <div class="spec-item">
+              <span class="spec-title">Ponderação Contábil</span>
+              <span class="spec-val">Rentabilidade x Alavancagem</span>
+            </div>
+          </div>
+
+          <div class="rule-box success-rule">
+            <strong>Critério de Seleção:</strong> Elege a empresa mais rentável e sólida da bolsa (Top Pick), gerando pontuações detalhadas que alimentam o Ranking Completo dos 100 ativos.
+          </div>
+        </div>
+      </div>
+
+      <!-- FASE 3: ANALISTA TÉCNICO -->
+      <div class="phase-card">
+        <div class="phase-image-container">
+          <img src="midia/analista_tecnico.jpg" alt="Analista Técnico e Price Action" loading="lazy">
+          <div class="phase-image-overlay">
+            <span class="badge-2k">2K OFFICIAL ASSET</span>
+          </div>
+        </div>
+        <div class="phase-info-container">
+          <div class="phase-badge"><span>📈</span> FASE 03 &middot; TIMING & VOLATILIDADE HISTÓRICA</div>
+          <h3 class="phase-heading">Price Action, Médias Móveis & Níveis Críticos</h3>
+          <p class="phase-text">
+            O Analista Técnico calcula o timing cirúrgico de entrada e saída. Monitora o comportamento diário dos últimos 30 pregões, calcula médias móveis simples (SMA 20 e SMA 50), índice de força relativa (RSI-14), detecta zonas de suporte e resistência e afere a <strong>Volatilidade Histórica Anualizada Real</strong> calculando os retornos logarítmicos diários sobre a base de 252 dias úteis.
+          </p>
+
+          <div class="specs-grid">
+            <div class="spec-item">
+              <span class="spec-title">Modelo de Volatilidade</span>
+              <span class="spec-val">Retornos Logarítmicos (252 dias)</span>
+            </div>
+            <div class="spec-item">
+              <span class="spec-title">Parâmetros Operacionais</span>
+              <span class="spec-val">Stop Técnico & Alvo de Resistência</span>
+            </div>
+          </div>
+
+          <div class="rule-box">
+            <strong>Critério de Corte:</strong> Reprova ativos esticados em topos históricos com RSI &gt; 70 ou em tendência de baixa sob a SMA50 sem pivô de reversão confirmado.
+          </div>
+        </div>
+      </div>
+
+      <!-- FASE 4: ESTRATEGISTA DE OPÇÕES -->
+      <div class="phase-card reverse">
+        <div class="phase-image-container">
+          <img src="midia/estrategista_opcoes.jpg" alt="Estrategista de Derivativos e Opções" loading="lazy">
+          <div class="phase-image-overlay">
+            <span class="badge-2k">2K OFFICIAL ASSET</span>
+          </div>
+        </div>
+        <div class="phase-info-container">
+          <div class="phase-badge"><span>⚡</span> FASE 04 &middot; DERIVATIVOS B3 & BLACK-SCHOLES</div>
+          <h3 class="phase-heading">Engenharia de Opções Mensais & Curvas de Payoff</h3>
+          <p class="phase-text">
+            O Estrategista de Opções estrutura operações de convexidade positiva focadas estritamente nas <strong>3ª sextas-feiras de cada mês</strong> (únicas séries com liquidez e formador de mercado ativo na B3). Utiliza o modelo matemático de <strong>Black-Scholes</strong> para calcular deterministamente as Gregas: Delta (direcional), Gamma (curvatura), Theta (decaimento temporal diário) e Vega (sensibilidade à volatilidade).
+          </p>
+
+          <div class="specs-grid">
+            <div class="spec-item">
+              <span class="spec-title">Estrutura Principal</span>
+              <span class="spec-val">Trava de Alta com Call (Débito)</span>
+            </div>
+            <div class="spec-item">
+              <span class="spec-title">Estrutura Alternativa</span>
+              <span class="spec-val">Venda Coberta de Call OTM</span>
+            </div>
+          </div>
+
+          <div class="rule-box success-rule">
+            <strong>Vencimentos Mensais B3:</strong> Séries semanais (W1, W2) são limadas por falta de liquidez; apenas séries mensais homologadas são modeladas na curva de payoff.
+          </div>
+        </div>
+      </div>
+
+      <!-- FASE 5: COORDENADOR DE RISCO -->
+      <div class="phase-card">
+        <div class="phase-image-container">
+          <img src="midia/coordenador_risco.jpg" alt="Coordenador de Risco da Mesa" loading="lazy">
+          <div class="phase-image-overlay">
+            <span class="badge-2k">2K OFFICIAL ASSET</span>
+          </div>
+        </div>
+        <div class="phase-info-container">
+          <div class="phase-badge"><span>🛡️</span> FASE 05 &middot; GOVERNANÇA & VETO PROGRAMÁTICO</div>
+          <h3 class="phase-heading">Comitê de Risco e Preservação Inegociável de Capital</h3>
+          <p class="phase-text">
+            O Coordenador de Risco é o órgão de auditoria prudencial independente da mesa. Ele aplica uma regra de ouro codificada diretamente em Python: para qualquer operação ser recomendada, a <strong>relação Risco/Retorno deve ser de no mínimo 1.50 : 1</strong> e o capital em risco deve estar estritamente limitado.
+          </p>
+
+          <div class="specs-grid">
+            <div class="spec-item">
+              <span class="spec-title">Sarrafo de R/R Mínimo</span>
+              <span class="spec-val">&ge; 1.50 : 1 (Preservação Ativa)</span>
+            </div>
+            <div class="spec-item">
+              <span class="spec-title">Veto em Código</span>
+              <span class="spec-val">tools/risk_gate.py</span>
+            </div>
+          </div>
+
+          <div class="rule-box danger-rule">
+            <strong>Por que veta?</strong> Se a trava pagar 1.44:1 (abaixo do piso de 1.50:1), o Gate de Risco anula qualquer parecer e ordena formalmente: <em>MANTER 100% EM CAIXA / CDI</em>. Nenhum agente pode ignorar este veto.
+          </div>
+        </div>
+      </div>
+
+      <!-- FASE 6: RESEARCH PUBLISHER -->
+      <div class="phase-card reverse">
+        <div class="phase-image-container">
+          <img src="midia/research_publisher.jpg" alt="Research Publisher e Compliance CVM" loading="lazy">
+          <div class="phase-image-overlay">
+            <span class="badge-2k">2K OFFICIAL ASSET</span>
+          </div>
+        </div>
+        <div class="phase-info-container">
+          <div class="phase-badge"><span>📄</span> FASE 06 &middot; RESEARCH & COMPLIANCE CVM 20/2021</div>
+          <h3 class="phase-heading">Relatório Executivo Oficial & Auditoria do Universo</h3>
+          <p class="phase-text">
+            O Publisher compila todo o racional da esteira e gera o relatório final em PDF profissional de alta fidelidade visual. O documento reflete com 100% de integridade o status da deliberação (seja Aprovado em verde ou Vetado no Risco em vermelho), consolida os parâmetros operacionais, detalha as gregas ativas e anexa a triagem do universo de 100 ativos do IBrX-100.
+          </p>
+
+          <div class="specs-grid">
+            <div class="spec-item">
+              <span class="spec-title">Conformidade Legal</span>
+              <span class="spec-val">Resolução CVM nº 20/2021</span>
+            </div>
+            <div class="spec-item">
+              <span class="spec-title">Formato de Saída</span>
+              <span class="spec-val">PDF Oficial + Dashboard Interativo</span>
+            </div>
+          </div>
+
+          <div class="rule-box success-rule">
+            <strong>Transparência Regulatória:</strong> Inclui o ranking dos 100 ativos ranqueados do melhor para o pior com os motivos exatos de aprovação ou eliminação em cada fase.
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Comparativo Institucional -->
+    <section class="comparative-section" id="comparativo">
+      <div style="text-align: center; max-width: 800px; margin: 0 auto;">
+        <span class="section-tag">POR QUE UMA MESA MULTIAGENTE?</span>
+        <h2 class="section-title">Análise Convencional vs. Mesa Multiagente Autônoma</h2>
+        <p class="section-desc" style="margin: 0 auto;">
+          Entenda as diferenças estruturais entre análises comuns de mercado e a esteira institucional desenvolvida.
+        </p>
+      </div>
+
+      <div class="compare-grid">
+        <div class="compare-card traditional">
+          <h3 style="color: var(--danger);"><span>⚠️</span> Abordagem Convencional / IA Simples</h3>
+          <ul class="compare-list">
+            <li><span>❌</span> <strong>Alucinações de Dados:</strong> Modelos que geram preços e múltiplos fictícios sem verificar APIs oficiais da bolsa.</li>
+            <li><span>❌</span> <strong>Viés Emocional / Fomo:</strong> Tendência a recomendar operações mesmo quando a relação risco/retorno é péssima.</li>
+            <li><span>❌</span> <strong>Opções Ilíquidas:</strong> Sugestão de opções semanais (W1, W2) que não possuem negócios nem formador de mercado na B3.</li>
+            <li><span>❌</span> <strong>Sem Auditoria de Risco:</strong> Nenhum mecanismo programático que impeça o analista de violar regras de perda máxima.</li>
+            <li><span>❌</span> <strong>Falta de Transparência:</strong> Analisa apenas 1 ativo aleatório sem mostrar o que foi descartado.</li>
+          </ul>
+        </div>
+
+        <div class="compare-card mesa">
+          <h3 style="color: var(--primary);"><span>🛡️</span> Mesa de Operações B3 Multiagente</h3>
+          <ul class="compare-list">
+            <li><span>✅</span> <strong>Dados Auditados:</strong> BRAPI oficial para cotações e balanços; zero tolerância com dados fabricados.</li>
+            <li><span>✅</span> <strong>Gate de Risco em Código:</strong> Se o Risco/Retorno for &lt; 1.50:1, o sistema veta programaticamente no backend.</li>
+            <li><span>✅</span> <strong>Séries Mensais B3:</strong> Foco exclusivo nas 3ª sextas-feiras com cálculo real de Black-Scholes (Delta, Gamma, Theta, Vega).</li>
+            <li><span>✅</span> <strong>Preservação de Capital:</strong> A recomendação de manter 100% em caixa é considerada uma decisão vitoriosa de gestão.</li>
+            <li><span>✅</span> <strong>Funil dos 100 Ativos:</strong> Ranking auditado do #1 ao #100 explicando a fase e o motivo da eliminação de cada ação.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- Banner de Ação Final -->
+    <section class="cta-banner">
+      <h2>Pronto para Vivenciar a Mesa em Tempo Real?</h2>
+      <p>
+        Acesse o terminal visual interativo, explore os gráficos de fechamentos técnicos de 30 dias, avalie as curvas de payoff de derivativos e consulte o ranking dos 100 ativos do IBrX-100.
+      </p>
+      <div class="cta-buttons">
+        <a href="/" class="btn-terminal btn-large">
+          <span>🚀</span> Acessar Terminal Operacional
+        </a>
+        <a href="/api/download/pdf" class="btn-terminal btn-large" style="background: rgba(255,255,255,0.08); color: var(--text-main); border: 1px solid var(--border-subtle); box-shadow: none;" target="_blank">
+          <span>📄</span> Ver Último Relatório PDF Emitido
+        </a>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <p>
+      Mesa de Operações B3 &middot; Desenvolvida sob o Framework Oficial CrewAI & FastAPI &middot; Múltiplos Oficiais BRAPI &middot; Google Gemini Flash &middot; Modelo Black-Scholes
+    </p>
+    <p style="margin-top: 0.5rem; font-size: 0.72rem; color: var(--text-muted);">
+      Documento em conformidade com a Resolução CVM nº 20/2021. Operações em renda variável e opções envolvem risco de capital.
+    </p>
+  </footer>
+</body>
+</html>

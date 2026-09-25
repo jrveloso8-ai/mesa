@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mesa de Operações B3 | Dashboard Executivo com Gráficos & Derivativos</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+  <!-- Chart.js para gráficos dinâmicos de alta performance -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+  <div class="app-background"></div>
+
+  <!-- Header Institucional -->
+  <header class="app-header">
+    <div class="header-container">
+      <div class="brand">
+        <div class="brand-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+          </svg>
+        </div>
+        <div>
+          <h1>MESA DE OPERAÇÕES <span>B3</span></h1>
+          <p class="subtitle">Esteira Multiagente Autônoma &middot; Cesta de Liquidez &middot; Black-Scholes &middot; CVM 20/2021</p>
+        </div>
+      </div>
+
+      <div class="header-actions">
+        <a href="/apresentacao.html" class="nav-item-btn">
+          <span>📖</span> Apresentação do Processo & Mídias
+        </a>
+        <div class="status-pill" id="statusPill">
+          <span class="status-dot"></span>
+          <span class="status-label" id="statusLabel">Sistema Pronto</span>
+        </div>
+        <button class="btn btn-primary" id="btnIniciar" onclick="iniciarAnalise()">
+          <span class="btn-icon">🚀</span>
+          <span class="btn-text">Disparar Análise da Mesa</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main class="main-content">
+    <!-- Métricas do Mercado / Universo -->
+    <section class="metrics-grid">
+      <div class="metric-card">
+        <span class="metric-title">Cesta de Liquidez B3</span>
+        <span class="metric-value">Top 10 do IBrX-100</span>
+        <span class="metric-badge">Líderes de Volume em Opções</span>
+      </div>
+      <div class="metric-card">
+        <span class="metric-title">Modelo de Precificação</span>
+        <span class="metric-value">Black-Scholes</span>
+        <span class="metric-badge">Gregas Determinísticas</span>
+      </div>
+      <div class="metric-card">
+        <span class="metric-title">Ciclo de Derivativos</span>
+        <span class="metric-value">3ª Sexta-Feira</span>
+        <span class="metric-badge">Vencimentos Mensais B3</span>
+      </div>
+      <div class="metric-card">
+        <span class="metric-title">Gate de Risco</span>
+        <span class="metric-value">Programático</span>
+        <span class="metric-badge">Piso Mínimo R/R 1.5 : 1</span>
+      </div>
+    </section>
+
+    <!-- Pipeline Visual dos 6 Agentes -->
+    <section class="pipeline-section">
+      <div class="section-header">
+        <h2>Esteira de Deliberação dos 6 Especialistas</h2>
+        <span class="pipeline-flow-hint">Fluxo Sequencial de Decisão &middot; Auditoria com Gate de Risco em Código</span>
+      </div>
+
+      <!-- Barra de Progresso em Tempo Real (0% a 100%) -->
+      <div class="progress-bar-wrapper" id="progressWrapper">
+        <div class="progress-bar-header">
+          <div class="progress-label-group">
+            <span class="progress-spinner" id="progressSpinner">⚡</span>
+            <span class="progress-step-text" id="progressStepText">Sistema pronto. Clique em "Disparar Análise da Mesa" para rodar a esteira.</span>
+          </div>
+          <span class="progress-pct" id="progressPct">0%</span>
+        </div>
+        <div class="progress-track">
+          <div class="progress-fill" id="progressFill" style="width: 0%;"></div>
+        </div>
+      </div>
+
+      <div class="agents-grid">
+        <!-- Agente 1 -->
+        <div class="agent-card" id="agent-1">
+          <div class="agent-header">
+            <div class="agent-avatar">🌐</div>
+            <div class="agent-info">
+              <h3>Analista Macro</h3>
+              <p>Juros, Câmbio e Commodities</p>
+            </div>
+            <span class="agent-state-badge" id="badge-1">Pendente</span>
+          </div>
+          <div class="agent-body">
+            <p class="agent-desc">Varredura de notícias em tempo real, Copom, Selic, Fed e pré-seleção dos ativos da cesta de liquidez.</p>
+          </div>
+        </div>
+
+        <!-- Agente 2 -->
+        <div class="agent-card" id="agent-2">
+          <div class="agent-header">
+            <div class="agent-avatar">📊</div>
+            <div class="agent-info">
+              <h3>Fundamentalista</h3>
+              <p>Valuation e Balanços</p>
+            </div>
+            <span class="agent-state-badge" id="badge-2">Pendente</span>
+          </div>
+          <div class="agent-body">
+            <p class="agent-desc">Consulta de múltiplos oficiais via BRAPI (P/L, ROE, Margens e Caixa) para eleger o melhor ativo.</p>
+          </div>
+        </div>
+
+        <!-- Agente 3 -->
+        <div class="agent-card" id="agent-3">
+          <div class="agent-header">
+            <div class="agent-avatar">📈</div>
+            <div class="agent-info">
+              <h3>Analista Técnico</h3>
+              <p>Timing e Price Action</p>
+            </div>
+            <span class="agent-state-badge" id="badge-3">Pendente</span>
+          </div>
+          <div class="agent-body">
+            <p class="agent-desc">Cálculo de Médias Móveis (SMA20/50), suportes, resistências, RSI-14 e Volatilidade Histórica Anualizada Real.</p>
+          </div>
+        </div>
+
+        <!-- Agente 4 -->
+        <div class="agent-card" id="agent-4">
+          <div class="agent-header">
+            <div class="agent-avatar">⚡</div>
+            <div class="agent-info">
+              <h3>Estrategista Opções</h3>
+              <p>Derivativos e Payoffs</p>
+            </div>
+            <span class="agent-state-badge" id="badge-4">Pendente</span>
+          </div>
+          <div class="agent-body">
+            <p class="agent-desc">Estruturação de operações (Travas, Venda Coberta), cálculo de Gregas e formulação de estratégia alternativa.</p>
+          </div>
+        </div>
+
+        <!-- Agente 5 -->
+        <div class="agent-card" id="agent-5">
+          <div class="agent-header">
+            <div class="agent-avatar">🛡️</div>
+            <div class="agent-info">
+              <h3>Coordenador de Risco</h3>
+              <p>Governança e Auditoria</p>
+            </div>
+            <span class="agent-state-badge" id="badge-5">Pendente</span>
+          </div>
+          <div class="agent-body">
+            <p class="agent-desc">Auditoria prudencial de Risco/Retorno e Stop. Autoriza ou veta a operação para proteção do capital.</p>
+          </div>
+        </div>
+
+        <!-- Agente 6 -->
+        <div class="agent-card" id="agent-6">
+          <div class="agent-header">
+            <div class="agent-avatar">📄</div>
+            <div class="agent-info">
+              <h3>Research Publisher</h3>
+              <p>Relatório Executivo CVM</p>
+            </div>
+            <span class="agent-state-badge" id="badge-6">Pendente</span>
+          </div>
+          <div class="agent-body">
+            <p class="agent-desc">Redação institucional para o investidor final e geração do documento PDF formal (Resolução CVM nº 20).</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- NAVEGAÇÃO INSTITUCIONAL POR ABAS DO DASHBOARD -->
+    <div class="tabs-nav-bar" id="tabsNavBar">
+      <button class="tab-btn active" id="tabBtnDeliberacao" onclick="trocarAba('deliberacao', this)">
+        <span class="tab-icon">📋</span>
+        <span class="tab-title">Deliberação Formal & Recomendação</span>
+        <span class="tab-indicator" id="tabStatusPill">Parecer Oficial</span>
+      </button>
+      <button class="tab-btn" id="tabBtnGraficos" onclick="trocarAba('graficos', this)">
+        <span class="tab-icon">📈</span>
+        <span class="tab-title">Terminal Gráfico & Payoff</span>
+        <span class="tab-indicator" id="tabAtivoPill">PETR4</span>
+      </button>
+      <button class="tab-btn" id="tabBtnRanking" onclick="trocarAba('ranking', this)">
+        <span class="tab-icon">📊</span>
+        <span class="tab-title">Universo IBrX-100 & Screening</span>
+        <span class="tab-indicator">100 Ativos</span>
+      </button>
+    </div>
+
+    <!-- ABA 1: DELIBERAÇÃO FORMAL & RECOMENDAÇÃO -->
+    <div class="tab-content active" id="tabContentDeliberacao">
+      <!-- Resultado / Deliberação Final da Mesa -->
+      <section class="result-section" id="resultSection" style="display: block;">
+        <div class="card result-card">
+          <div class="result-header">
+            <div>
+              <div class="badge-tag-container">
+                <span class="badge-tag">DELIBERAÇÃO FINAL DA MESA DE OPERAÇÕES</span>
+                <span class="status-badge" id="decisionStatusBadge">REPROVADO_TOTAL</span>
+              </div>
+              <h2 id="relatorioTitulo">Resumo Executivo da Operação</h2>
+              <p class="result-date" id="relatorioData">Atualizado em tempo real</p>
+            </div>
+            <div class="result-actions">
+              <a href="/api/download/pdf" class="btn btn-download" id="btnDownloadPdf" target="_blank">
+                <span>📥</span> Baixar Relatório Executivo Oficial (PDF)
+              </a>
+            </div>
+          </div>
+
+        <div class="result-grid">
+          <!-- Tabela de Parâmetros -->
+          <div class="result-col">
+            <h3>📋 Parâmetros Técnicos & Estruturais</h3>
+            <div class="table-responsive">
+              <table class="params-table" id="paramsTable">
+                <thead>
+                  <tr>
+                    <th>Item Operacional</th>
+                    <th>Valor / Nível Técnico</th>
+                  </tr>
+                </thead>
+                <tbody id="paramsTableBody">
+                  <!-- Inserido dinamicamente via JS -->
+                </tbody>
+              </table>
+            </div>
+
+            <!-- Tabela de Gregas se houver -->
+            <div id="gregasBlock" style="margin-top: 1rem; display: none;">
+              <h3>⚡ Gregas de Opções (Black-Scholes)</h3>
+              <div class="gregas-grid">
+                <div class="grega-card">
+                  <span class="grega-name">DELTA</span>
+                  <span class="grega-val" id="gregaDelta">0.00</span>
+                </div>
+                <div class="grega-card">
+                  <span class="grega-name">GAMMA</span>
+                  <span class="grega-val" id="gregaGamma">0.00</span>
+                </div>
+                <div class="grega-card">
+                  <span class="grega-name">THETA (DIÁRIO)</span>
+                  <span class="grega-val" id="gregaTheta">0.00</span>
+                </div>
+                <div class="grega-card">
+                  <span class="grega-name">VEGA (1%)</span>
+                  <span class="grega-val" id="gregaVega">0.00</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Tese e Gestão de Risco -->
+          <div class="result-col">
+            <div class="info-block">
+              <h3>💡 Tese de Investimento & Fundamentos</h3>
+              <p id="relatorioTese">Aguardando dados...</p>
+            </div>
+
+            <div class="info-block risk-block" id="riskBlockContainer">
+              <h3>🛡️ Gestão de Risco & Parecer do Comitê</h3>
+              <p id="relatorioRisco">Aguardando dados...</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="cvm-disclaimer">
+          <strong>⚖️ AVISO REGULATÓRIO &middot; RESOLUÇÃO CVM Nº 20/2021:</strong>
+          <span id="relatorioCvm">Este relatório tem fins estritamente informativos...</span>
+        </div>
+      </div>
+    </section>
+  </div> <!-- fim tabContentDeliberacao -->
+
+  <!-- ABA 2: TERMINAL GRÁFICO & DERIVATIVOS -->
+  <div class="tab-content" id="tabContentGraficos">
+    <!-- Seletor Interativo de Ativos -->
+    <div class="asset-selector-container">
+      <div class="asset-quick-buttons">
+        <span style="font-size: 0.78rem; font-weight: 700; color: var(--text-muted); margin-right: 0.25rem;">Atalhos Top Picks:</span>
+        <button class="quick-asset-btn active" id="btnQuickPETR4" onclick="selecionarAtivo('PETR4', this)">PETR4</button>
+        <button class="quick-asset-btn" id="btnQuickVALE3" onclick="selecionarAtivo('VALE3', this)">VALE3</button>
+        <button class="quick-asset-btn" id="btnQuickITUB4" onclick="selecionarAtivo('ITUB4', this)">ITUB4</button>
+        <button class="quick-asset-btn" id="btnQuickBBAS3" onclick="selecionarAtivo('BBAS3', this)">BBAS3</button>
+        <button class="quick-asset-btn" id="btnQuickWEGE3" onclick="selecionarAtivo('WEGE3', this)">WEGE3</button>
+        <button class="quick-asset-btn" id="btnQuickPRIO3" onclick="selecionarAtivo('PRIO3', this)">PRIO3</button>
+        <button class="quick-asset-btn" id="btnQuickBPAC11" onclick="selecionarAtivo('BPAC11', this)">BPAC11</button>
+      </div>
+      <form class="asset-search-form" onsubmit="buscarAtivoManual(event)">
+        <input type="text" id="manualTickerInput" placeholder="EX: B3SA3" maxlength="6">
+        <button type="submit">Consultar Gráfico</button>
+      </form>
+    </div>
+
+    <!-- Alerta Explicativo sobre a Curva de Payoff -->
+    <div id="payoffAlertBanner" class="payoff-status-banner vetado">
+      <span style="font-size: 1.25rem;">🛡️</span>
+      <div>
+        <strong id="payoffBannerTitle">OPERAÇÃO VETADA PELO COMITÊ DE RISCO (100% EM CAIXA / CDI)</strong>
+        <p id="payoffBannerDesc" style="margin-top: 0.2rem; font-size: 0.78rem;">
+          A estrutura de Trava de Alta abaixo foi REPROVADA porque sua relação Risco/Retorno violou o piso prudencial de 1.50:1. A curva de payoff é exibida apenas para fins de simulação e auditoria didática. Nenhuma ordem deve ser enviada a mercado.
+        </p>
+      </div>
+    </div>
+
+    <!-- SEÇÃO VISUAL: GRÁFICOS DINÂMICOS (CANDLESTICKS & PAYOFF DE OPÇÕES) -->
+    <section class="charts-section" id="chartsSection" style="display: block;">
+      <div class="charts-grid">
+        <!-- Gráfico 1: Ação & Indicadores Técnicos -->
+        <div class="chart-card">
+          <div class="chart-header">
+            <div>
+              <span class="chart-tag">PRICE ACTION &middot; BRAPI 30D</span>
+              <h3 id="chartStockTitle">PETR4 &middot; Fechamentos & Níveis Técnicos (30D)</h3>
+            </div>
+            <div class="chart-legend">
+              <span class="legend-item"><span class="dot blue"></span> Fechamento</span>
+              <span class="legend-item"><span class="dot purple"></span> SMA 20</span>
+              <span class="legend-item"><span class="dot green"></span> Suporte</span>
+              <span class="legend-item"><span class="dot red"></span> Resistência</span>
+            </div>
+          </div>
+          <div class="canvas-container">
+            <canvas id="stockChart"></canvas>
+          </div>
+        </div>
+
+        <!-- Gráfico 2: Curva de Payoff de Opções -->
+        <div class="chart-card">
+          <div class="chart-header">
+            <div>
+              <span class="chart-tag" id="chartPayoffTag">DERIVATIVOS &middot; SIMULAÇÃO DE ESTRUTURA</span>
+              <h3 id="chartPayoffTitle">Curva de Payoff da Estratégia</h3>
+            </div>
+            <div class="chart-legend">
+              <span class="legend-item"><span class="dot cyan"></span> Payoff Líquido (R$)</span>
+              <span class="legend-item"><span class="dot yellow"></span> Breakeven</span>
+            </div>
+          </div>
+          <div class="canvas-container">
+            <canvas id="payoffChart"></canvas>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div> <!-- fim tabContentGraficos -->
+
+  <!-- ABA 3: RANKING & SCREENING DO IBRX-100 -->
+  <div class="tab-content" id="tabContentRanking">
+    <!-- Seção de Triagem & Ranking IBrX-100 (Universo Completo dos 100 Ativos) -->
+    <section class="ranking-section" id="rankingSection">
+      <div class="card ranking-card">
+        <div class="ranking-header">
+          <div class="ranking-title-group">
+            <span class="badge-tag">UNIVERSO IBRX-100 &middot; AUDITORIA COMPLETA DE SELEÇÃO</span>
+            <h2>📊 Ranking dos 100 Ativos do Melhor para o Pior</h2>
+            <p class="ranking-subtitle">Diagnóstico transparente de aprovação e eliminação através das 4 fases da esteira multiagente.</p>
+          </div>
+          
+          <div class="ranking-search-box">
+            <input type="text" id="rankingSearchInput" placeholder="🔍 Buscar ticker, empresa, setor ou motivo..." oninput="filtrarTabelaRanking()" />
+          </div>
+        </div>
+
+        <!-- Cards de Estatísticas do Funil -->
+        <div class="funnel-stats-grid">
+          <div class="funnel-stat-card">
+            <span class="funnel-stat-label">TOTAL ANALISADO</span>
+            <span class="funnel-stat-val" id="statTotalTriados">100</span>
+            <span class="funnel-stat-sub">100% Cesta IBrX-100 B3</span>
+          </div>
+          <div class="funnel-stat-card border-cyan">
+            <span class="funnel-stat-label">TOP PICKS / ELEGÍVEIS</span>
+            <span class="funnel-stat-val cyan" id="statAprovadas">-</span>
+            <span class="funnel-stat-sub">Passaram nas 4 camadas</span>
+          </div>
+          <div class="funnel-stat-card border-warning">
+            <span class="funnel-stat-label">VETADOS NO RISCO</span>
+            <span class="funnel-stat-val warning" id="statVetadosRisco">-</span>
+            <span class="funnel-stat-sub">R/R &lt; 1.50:1 ou Veto</span>
+          </div>
+          <div class="funnel-stat-card border-danger">
+            <span class="funnel-stat-label">ELIMINADOS NO FUNIL</span>
+            <span class="funnel-stat-val danger" id="statEliminadas">-</span>
+            <span class="funnel-stat-sub">Macro / Fund / Técnico</span>
+          </div>
+        </div>
+
+        <!-- Filtros Rápidos -->
+        <div class="ranking-filters-bar">
+          <span class="filter-label">Filtrar por:</span>
+          <button class="filter-btn active" data-filter="todos" onclick="aplicarFiltroStatus('todos', this)">Todos (100)</button>
+          <button class="filter-btn" data-filter="top10" onclick="aplicarFiltroStatus('top10', this)">Top 10</button>
+          <button class="filter-btn" data-filter="VETADO_NO_RISCO" onclick="aplicarFiltroStatus('VETADO_NO_RISCO', this)">Vetados no Risco</button>
+          <button class="filter-btn" data-filter="ELEGIVEL_EM_ESPERA" onclick="aplicarFiltroStatus('ELEGIVEL_EM_ESPERA', this)">Elegíveis em Espera</button>
+          <button class="filter-btn" data-filter="ELIMINADO_TECNICO" onclick="aplicarFiltroStatus('ELIMINADO_TECNICO', this)">Reprovados em Técnico</button>
+          <button class="filter-btn" data-filter="ELIMINADO_FUNDAMENTALISTA" onclick="aplicarFiltroStatus('ELIMINADO_FUNDAMENTALISTA', this)">Reprovados em Valuation</button>
+          <button class="filter-btn" data-filter="ELIMINADO_MACRO" onclick="aplicarFiltroStatus('ELIMINADO_MACRO', this)">Reprovados em Macro</button>
+        </div>
+
+        <!-- Tabela Responsiva dos 100 Ativos -->
+        <div class="table-responsive ranking-table-wrapper">
+          <table class="ranking-table" id="rankingTable">
+            <thead>
+              <tr>
+                <th style="width: 60px; text-align: center;">Pos.</th>
+                <th style="width: 95px; text-align: center;">Ticker</th>
+                <th style="width: 170px;">Empresa</th>
+                <th style="width: 140px;">Setor</th>
+                <th style="width: 65px; text-align: right;">P/L</th>
+                <th style="width: 75px; text-align: right;">ROE</th>
+                <th style="width: 85px; text-align: center;">Tendência</th>
+                <th style="width: 85px; text-align: center;">Score Geral</th>
+                <th style="width: 170px; text-align: center;">Fase & Status</th>
+                <th>Diagnóstico & Motivo da Eliminação / Parecer</th>
+              </tr>
+            </thead>
+            <tbody id="rankingTableBody">
+              <tr>
+                <td colspan="10" style="text-align: center; padding: 2rem; color: var(--text-muted);">
+                  Carregando dados da triagem dos 100 ativos do IBrX-100...
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </div> <!-- fim tabContentRanking -->
+
+  <!-- Console de Logs em Tempo Real -->
+  <section class="console-section">
+      <div class="console-card">
+        <div class="console-header">
+          <div class="console-title">
+            <span class="terminal-dot red"></span>
+            <span class="terminal-dot yellow"></span>
+            <span class="terminal-dot green"></span>
+            <span>Console da Mesa &middot; Logs do Processamento Multiagente</span>
+          </div>
+          <button class="btn-clear" onclick="limparLogs()">Limpar</button>
+        </div>
+        <div class="console-body" id="consoleLogs">
+          <div class="log-line text-muted">[SISTEMA] Aguardando comando de inicialização. Clique em "Disparar Análise da Mesa" para rodar a esteira.</div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="app-footer">
+    <p>Mesa de Operações B3 &middot; Framework Oficial CrewAI &middot; Dados Oficiais BRAPI &middot; Google Gemini Flash &middot; Modelo Black-Scholes</p>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>

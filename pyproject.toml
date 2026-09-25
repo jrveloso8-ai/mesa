@@ -1,0 +1,26 @@
+[project]
+name = "mesa-de-operacoes"
+version = "0.1.0"
+description = "Mesa de Operações B3 Multiagente com CrewAI, BRAPI, Análise Macro, Fundamentalista, Técnica, Opções e Risco"
+authors = [{ name = "Mesa de Operações", email = "mesa@investimentos.com.br" }]
+requires-python = ">=3.10,<3.14"
+dependencies = [
+    "crewai>=1.15.0",
+    "crewai-tools>=0.14.0",
+    "requests>=2.31.0",
+    "pydantic>=2.0.0",
+    "duckduckgo-search>=6.0.0",
+    "fpdf2>=2.8.0",
+    "rich>=13.0.0",
+    "python-dotenv>=1.0.0",
+    "pytest>=7.0.0",
+    "fastapi>=0.110.0",
+    "uvicorn>=0.28.0",
+]
+
+[project.scripts]
+mesa = "main:run"
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]

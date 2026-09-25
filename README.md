@@ -59,6 +59,27 @@ Oper/
 
 ---
 
+## 🔐 Configuração de Ambiente e Segurança
+
+Crie um arquivo `.env` na raiz do projeto baseado no `.env.example`:
+
+```env
+# Chave da API Google Gemini
+GOOGLE_API_KEY=sua_chave_aqui
+
+# Token da BRAPI (Cotações e Dados de Mercado)
+BRAPI_TOKEN=seu_token_aqui
+
+# Modelo padrão do CrewAI (recomendado para alta cota e resiliência)
+MODEL=gemini/gemini-flash-latest
+
+# Chave secreta de autenticação da Mesa (Opcional localmente, OBRIGATÓRIA se exposta publicamente em VPS/Servidor próprio)
+# Se preenchida, bloqueia requisições não autorizadas ao endpoint /api/iniciar (exige cabeçalho X-API-KEY)
+MESA_API_KEY=sua_chave_secreta_aqui
+```
+
+---
+
 ## 🚀 Como Executar
 
 ### Opção 1: Painel Visual Interativo no Navegador (Recomendado)

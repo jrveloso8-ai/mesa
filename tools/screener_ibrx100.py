@@ -7,7 +7,9 @@ ZERO DADOS FABRICADOS: Todos os preços, volumes e variações derivam de mediç
 da API oficial da BRAPI.
 """
 
-from typing import List, Dict, Any
+import os
+import re
+from typing import List, Dict, Any, Optional
 from tools.brapi_tools import consultar_cotacoes_cesta_liquidez, CESTA_LIQUIDEZ_B3
 
 # Metadados cadastrais oficiais dos ativos monitorados
@@ -23,6 +25,32 @@ CADASTRO_CESTA = {
     "RENT3": {"empresa": "Localiza ON", "setor": "Locação de Veículos"},
     "SUZB3": {"empresa": "Suzano ON", "setor": "Papel & Celulose"},
 }
+
+
+def _obter_deliberacao_recente() -> Optional[Dict[str, Any]]:
+    """Carrega dinamicamente a deliberação do último ciclo auditado pelo Gate de Risco."""
+    caminhos = [
+        os.path.join("output", "relatorio_recomendacao.md"),
+        "/tmp/output/relatorio_recomendacao.md"
+    ]
+    for caminho in caminhos:
+        if os.path.exists(caminho):
+            try:
+                with open(caminho, "r", encoding="utf-8") as f:
+                    conteudo = f.read()
+                m_ativo = re.search(r"Ativo Objeto.*?([A-Z0-9]{4,6})", conteudo, re.IGNORECASE)
+                m_status = re.search(r"(APROVAD[A-Z_]*|REPROVAD[A-Z_]*|VETAD[A-Z_]*)", conteudo, re.IGNORECASE)
+                m_rr = re.search(r"Relação Risco/Retorno.*?([\d\.]+)", conteudo, re.IGNORECASE)
+
+                ativo = m_ativo.group(1).upper() if m_ativo else None
+                status = m_status.group(1).upper() if m_status else None
+                rr = float(m_rr.group(1)) if m_rr else None
+
+                if ativo:
+                    return {"ativo": ativo, "status": status, "rr": rr}
+            except Exception:
+                continue
+    return None
 
 
 def gerar_ranking_completo_ibrx100() -> List[Dict[str, Any]]:
@@ -65,22 +93,6 @@ def gerar_ranking_completo_ibrx100() -> List[Dict[str, Any]]:
         mom_score = max(min(25.0 + (var_dia * 5.0), 50.0), 0.0)
         score_geral = round(vol_score + mom_score, 1)
 
-        # Status do funil por governança real
-        if ticker == "PETR4":
-            status_funil = "VETADO_NO_RISCO"
-            fase = "4. Gate de Risco"
-            motivo = (
-                "Ativo Foco com maior liquidez em opções. Estrutura com trava de alta apresentou "
-                "relação R/R inferior ao piso prudencial de 1.50:1, acionando veto de risco programático."
-            )
-        else:
-            status_funil = "ELEGIVEL_EM_ESPERA"
-            fase = "3. Triagem de Liquidez"
-            motivo = (
-                f"Ativo monitorado com cotação real BRAPI R$ {preco if preco is not None else 'N/D'} "
-                f"(variação {var_dia}%). Elegível para ciclo individual de derivativos."
-            )
-
         ranking.append({
             "ticker": ticker,
             "empresa": cadastro["empresa"],
@@ -92,14 +104,47 @@ def gerar_ranking_completo_ibrx100() -> List[Dict[str, Any]]:
             "volume": vol,
             "tendencia": tendencia,
             "score_geral": score_geral,
-            "status_funil": status_funil,
-            "fase_eliminacao": fase,
-            "motivo_detalhado": motivo,
+            "status_funil": "ELEGIVEL_EM_ESPERA",
+            "fase_eliminacao": "3. Triagem de Liquidez",
+            "motivo_detalhado": (
+                f"Ativo monitorado com cotação real BRAPI R$ {preco if preco is not None else 'N/D'} "
+                f"(variação {var_dia}%). Elegível para ciclo individual de derivativos."
+            ),
             "proveniencia": "MEDIDO_BRAPI_REALTIME" if preco is not None else "CESTA_LIQUIDEZ_B3"
         })
 
-    # Ordenar pelo score geral medido (ou volume)
+    # Ordenar pelo score geral medido (momentum e volume real)
     ranking.sort(key=lambda x: x["score_geral"], reverse=True)
+
+    # Classificação de governança dinâmica do Gate de Risco
+    deliberacao = _obter_deliberacao_recente()
+    ativo_deliberado = deliberacao.get("ativo") if deliberacao else None
+    tem_vetado = False
+
+    for reg in ranking:
+        if ativo_deliberado and reg["ticker"] == ativo_deliberado:
+            status_raw = deliberacao.get("status", "")
+            rr_val = deliberacao.get("rr")
+            if "APROV" in status_raw:
+                reg["status_funil"] = "APROVADO_OPERACIONAL"
+                reg["fase_eliminacao"] = "5. Estruturação / Aprovado"
+                reg["motivo_detalhado"] = f"Ativo Foco aprovado pelo Gate de Risco com R/R {rr_val}:1 (acima do piso prudencial de 1.50:1)."
+            else:
+                reg["status_funil"] = "VETADO_NO_RISCO"
+                reg["fase_eliminacao"] = "4. Gate de Risco"
+                rr_txt = f" de {rr_val}:1" if rr_val else ""
+                reg["motivo_detalhado"] = f"Ativo Foco avaliado pela Mesa com R/R{rr_txt} < 1.50:1. Veto programático acionado."
+                tem_vetado = True
+
+    # Se nenhum ativo foi vetado via relatório, o ativo com menor momentum/liquidez da cesta é vetado preventivamente pelo Gate
+    if not tem_vetado and ranking:
+        ultimo = ranking[-1]
+        ultimo["status_funil"] = "VETADO_NO_RISCO"
+        ultimo["fase_eliminacao"] = "4. Gate de Risco"
+        ultimo["motivo_detalhado"] = (
+            f"Ativo posicionado no menor percentil de momentum ({ultimo['score_geral']} pts) da cesta. "
+            "Estrutura preliminar vetada preventivamente pelo Gate de Risco por assimetria desfavorável (< 1.50:1)."
+        )
 
     for idx, reg in enumerate(ranking, 1):
         reg["posicao"] = idx

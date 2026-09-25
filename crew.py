@@ -49,42 +49,75 @@ if google_key:
     os.environ["GEMINI_API_KEY"] = google_key
     os.environ["GOOGLE_API_KEY"] = google_key
 
-# Patch de resiliência para tratamento de picos de demanda (HTTP 503 / 429) no Google Gemini
+# Patch de resiliência e auto-recovery para picos de demanda e limites de cota (HTTP 503 / 429) no Google Gemini
 try:
     import time
+    import re
     from crewai.llms.providers.gemini.completion import GeminiCompletion
     _orig_gemini_handle = GeminiCompletion._handle_completion
+
+    # Lista de modelos de alta capacidade com cotas independentes na API Google Gemini
+    MODELOS_FALLBACK = [
+        "gemini-flash-latest",
+        "gemini-flash-lite-latest",
+        "gemini-3.5-flash-lite",
+    ]
 
     def _resilient_gemini_handle(self, contents, config, available_functions=None, from_task=None, from_agent=None, response_model=None):
         client = self._get_sync_client()
         contents_for_api = contents
-        modelo_atual = self.model
-        tentativas = 5
-        for attempt in range(tentativas):
-            try:
-                response = client.models.generate_content(
-                    model=modelo_atual,
-                    contents=contents_for_api,
-                    config=config,
-                )
-                usage = self._extract_token_usage(response)
-                self._track_token_usage_internal(usage)
-                return self._process_response_with_tools(
-                    response=response,
-                    contents=contents,
-                    available_functions=available_functions,
-                    from_task=from_task,
-                    from_agent=from_agent,
-                    response_model=response_model,
-                )
-            except Exception as e:
-                msg = str(e).lower()
-                if ("503" in msg or "unavailable" in msg or "demand" in msg or "quota" in msg or "exhausted" in msg) and attempt < tentativas - 1:
-                    espera = 2.0 * (attempt + 1)
-                    print(f"⚠️ [Resiliência Gemini] Sobrecarga temporária da API ({modelo_atual}). Aguardando {espera:.1f}s (tentativa {attempt+1}/{tentativas})...")
-                    time.sleep(espera)
-                    continue
-                raise e
+        
+        # Constrói fila ordenada de modelos iniciando pelo modelo configurado
+        modelo_base = str(self.model).replace("gemini/", "").replace("models/", "").strip()
+        candidatos = [modelo_base]
+        for m in MODELOS_FALLBACK:
+            if m not in candidatos:
+                candidatos.append(m)
+
+        ultimo_erro = None
+        for modelo_atual in candidatos:
+            for attempt in range(3):
+                try:
+                    response = client.models.generate_content(
+                        model=modelo_atual,
+                        contents=contents_for_api,
+                        config=config,
+                    )
+                    usage = self._extract_token_usage(response)
+                    self._track_token_usage_internal(usage)
+                    return self._process_response_with_tools(
+                        response=response,
+                        contents=contents,
+                        available_functions=available_functions,
+                        from_task=from_task,
+                        from_agent=from_agent,
+                        response_model=response_model,
+                    )
+                except Exception as e:
+                    ultimo_erro = e
+                    msg = str(e).lower()
+                    
+                    # Esgotamento de cota diária do modelo ou modelo indisponível: alterna para o próximo modelo da lista
+                    if "resource_exhausted" in msg or "quota exceeded" in msg or "free_tier_requests" in msg or "404" in msg or "not_found" in msg:
+                        print(f"⚠️ [Resiliência Gemini] Cota/Modelo esgotado para '{modelo_atual}'. Alternando automaticamente para o próximo modelo com cota fresca...")
+                        break
+                        
+                    # Sobrecarga temporária (503) ou rate-limit temporário por minuto (429 com delay)
+                    if "503" in msg or "unavailable" in msg or "demand" in msg or "retry in" in msg or "retrydelay" in msg or "429" in msg:
+                        m_delay = re.search(r"retry in (\d+\.?\d*)s", msg) or re.search(r"retrydelay':\s*'(\d+)s'", msg)
+                        if m_delay:
+                            espera = min(float(m_delay.group(1)) + 1.0, 36.0)
+                        else:
+                            espera = 2.0 * (attempt + 1)
+                        print(f"⚠️ [Resiliência Gemini] Limite temporário da API ({modelo_atual}). Aguardando {espera:.1f}s (tentativa {attempt+1}/3)...")
+                        time.sleep(espera)
+                        continue
+                    
+                    # Outro erro
+                    break
+
+        if ultimo_erro:
+            raise ultimo_erro
 
     GeminiCompletion._handle_completion = _resilient_gemini_handle
 except Exception as _patch_err:
@@ -99,8 +132,8 @@ class MesaOperacoesCrew:
     tasks_config = "config/tasks.yaml"
 
     def __init__(self):
-        # Configuração do LLM Gemini
-        modelo = os.getenv("MODEL", "gemini/gemini-3-flash-preview")
+        # Configuração do LLM Gemini (modelo padrão estável e de alta cota)
+        modelo = os.getenv("MODEL", "gemini/gemini-flash-latest")
         self.llm = LLM(
             model=modelo,
             temperature=0.2,

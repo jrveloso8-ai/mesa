@@ -203,3 +203,33 @@ Este documento registra formalmente todos os incidentes, gargalos de produção,
 | **Deploy** | Configurar `vercel.json` com `includeFiles` explícito para todos os diretórios estáticos e templates. |
 | **Segurança** | Jamais usar `:path` sem validação canônica `realpath`. Whitelist de extensões e zero endpoints de debug. |
 
+---
+
+## 9. ROTEIRO DE PERGUNTAS DE AUDITORIA & ARQUITETURA PRÉ-DESENVOLVIMENTO
+
+Para garantir que novos projetos nasçam imunes a todos os problemas documentados nesta base, a IA deve **obrigatoriamente fazer as seguintes perguntas estruturadas** ao desenvolvedor antes de escrever a primeira linha de código:
+
+### Perguntas de Diagnóstico & Proteções Conectadas
+1. **Ambiente & Host:**
+   * *Pergunta:* "O servidor local escutará estritamente em `127.0.0.1` e os scripts Windows usarão UTF-8 sem BOM com `chcp 65001`?"
+   * *O que previne:* Erros de sintaxe em batch (`0B`, `cho`) e exposição de portas em redes Wi-Fi locais.
+2. **Resiliência a Quotas de IA:**
+   * *Pergunta:* "Qual é a cadeia de contingência multi-modelo configurada para mitigar o erro `429 RESOURCE_EXHAUSTED` e qual o teto de `max_iter` dos agentes de busca?"
+   * *O que previne:* Travamento da esteira no meio da execução por estouro de cota por minuto/dia.
+3. **Anti-Alucinação & Cálculos:**
+   * *Pergunta:* "Quais cálculos e regras de negócio DEVEM rodar em Python puro sob `@tool` em vez de depender de matemática gerada por IA?"
+   * *O que previne:* Alucinações de preços, múltiplos, impostos ou taxas inventadas pelo modelo.
+4. **Veto Programático do Negócio:**
+   * *Pergunta:* "Qual é a regra de corte mandatória do negócio que será implementada como Veto Automático em código (`tools/policy_gate.py`), independente de opinião textual da IA?"
+   * *O que previne:* Aprovação de operações desastrosas por viés cognitivo ou alucinação do modelo.
+5. **Segurança de Arquivos & Mídia:**
+   * *Pergunta:* "Haverá rotas de download de mídias ou relatórios? Como será garantida a whitelist de extensões e o confinamento estrito via `os.path.realpath()` para impedir Path Traversal (CWE-22)?"
+   * *O que previne:* Vazamento de arquivos confidenciais (`.env`, chaves privadas, código-fonte).
+6. **Design System Responsivo:**
+   * *Pergunta:* "A interface possui suporte mobile nato (320px–768px) com `minmax(min(100%, ...), 1fr)`, tabelas com scroll touch e gráficos dinâmicos com auto-redimensionamento?"
+   * *O que previne:* Telas quebradas, barras de rolagem horizontal indesejadas e auto-zoom no Safari iOS.
+7. **Paridade Cloud Serverless vs. Local:**
+   * *Pergunta:* "Como será tratada a limitação de timeout e filesystem serverless na nuvem (ex: Vercel) frente ao processamento completo de agentes locais? As pastas estáticas estão listadas em `includeFiles` do `vercel.json` em minúsculas?"
+   * *O que previne:* Imagens retornando 404 na nuvem e tarefas em background congeladas prematuramente.
+
+

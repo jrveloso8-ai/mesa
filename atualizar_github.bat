@@ -13,12 +13,11 @@ echo [1/4] Verificando status dos arquivos modificados...
 git status -s
 echo.
 
-set "MSG_COMMIT=update: Sincronizacao automatica da mesa"
-set "INPUT_COMMIT="
-set /p INPUT_COMMIT=Digite a mensagem do commit ou pressione ENTER para automatica: 
+set "MSG_COMMIT="
+set /p "MSG_COMMIT=Digite a mensagem do commit ou pressione ENTER para automatica: "
 
-if defined INPUT_COMMIT (
-    set "MSG_COMMIT=%INPUT_COMMIT%"
+if not defined MSG_COMMIT (
+    set "MSG_COMMIT=update: Sincronizacao automatica da mesa"
 )
 
 echo.

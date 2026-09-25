@@ -689,16 +689,38 @@ def baixar_pdf():
 
 
 @app.get("/apresentacao")
+@app.get("/apresentacao.html")
 def pagina_apresentacao():
-    caminho_apresentacao = os.path.join("static", "apresentacao.html")
+    dir_base = os.path.dirname(os.path.abspath(__file__))
+    caminho_apresentacao = os.path.join(dir_base, "static", "apresentacao.html")
     if os.path.exists(caminho_apresentacao):
         return FileResponse(caminho_apresentacao, media_type="text/html")
     return JSONResponse({"erro": "Página de apresentação não encontrada."}, status_code=404)
 
 
+@app.get("/midia/{nome_arquivo:path}")
+@app.get("/static/midia/{nome_arquivo:path}")
+def servir_midia_direta(nome_arquivo: str):
+    dir_base = os.path.dirname(os.path.abspath(__file__))
+    pastas_busca = [
+        os.path.join(dir_base, "static", "midia"),
+        os.path.join(dir_base, "Midia"),
+        "static/midia",
+        "Midia"
+    ]
+    for pasta in pastas_busca:
+        caminho = os.path.join(pasta, nome_arquivo)
+        if os.path.exists(caminho):
+            ext = os.path.splitext(nome_arquivo)[1].lower()
+            tipo_mime = "video/mp4" if ext == ".mp4" else ("image/jpeg" if ext in [".jpg", ".jpeg"] else "application/octet-stream")
+            return FileResponse(caminho, media_type=tipo_mime)
+    return JSONResponse({"erro": f"Arquivo de mídia '{nome_arquivo}' não encontrado."}, status_code=404)
+
+
 # Servir arquivos estáticos (HTML/CSS/JS)
-os.makedirs("static", exist_ok=True)
-app.mount("/", StaticFiles(directory="static", html=True), name="static")
+dir_static = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")
+os.makedirs(dir_static, exist_ok=True)
+app.mount("/", StaticFiles(directory=dir_static, html=True), name="static")
 
 
 def encontrar_porta_livre(porta_base=8000):

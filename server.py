@@ -688,6 +688,22 @@ def baixar_pdf():
     return JSONResponse({"erro": "Nenhum relatório PDF disponível no momento."}, status_code=404)
 
 
+@app.get("/api/debug-files")
+def debug_files():
+    dir_base = os.path.dirname(os.path.abspath(__file__))
+    p_static = os.path.join(dir_base, "static")
+    p_midia = os.path.join(p_static, "midia")
+    return JSONResponse({
+        "dir_base": dir_base,
+        "cwd": os.getcwd(),
+        "dir_base_files": os.listdir(dir_base) if os.path.exists(dir_base) else [],
+        "static_exists": os.path.exists(p_static),
+        "static_files": os.listdir(p_static) if os.path.exists(p_static) else [],
+        "midia_exists": os.path.exists(p_midia),
+        "midia_files": os.listdir(p_midia) if os.path.exists(p_midia) else []
+    })
+
+
 @app.get("/apresentacao")
 @app.get("/apresentacao.html")
 def pagina_apresentacao():

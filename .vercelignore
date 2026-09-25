@@ -1,6 +1,5 @@
 .env
 .env.*
-Midia/
 *.pdf
 output/
 tests/

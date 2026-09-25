@@ -714,6 +714,17 @@ def pagina_apresentacao():
     return JSONResponse({"erro": "Página de apresentação não encontrada."}, status_code=404)
 
 
+MAPA_MIDIA_KEYWORDS = {
+    "workflow_demo.mp4": ["workflow", "demonstration", ".mp4"],
+    "analista_macro.jpg": ["macro"],
+    "analista_tecnico.jpg": ["tecnico", "tcnico"],
+    "coordenador_risco.jpg": ["risco", "coordenador"],
+    "estrategista_opcoes.jpg": ["estrategista", "opcoes", "opco", "opes"],
+    "fundamentalista.jpg": ["fundamentalista"],
+    "research_publisher.jpg": ["publisher", "research"]
+}
+
+
 @app.get("/midia/{nome_arquivo:path}")
 @app.get("/static/midia/{nome_arquivo:path}")
 def servir_midia_direta(nome_arquivo: str):
@@ -721,15 +732,35 @@ def servir_midia_direta(nome_arquivo: str):
     pastas_busca = [
         os.path.join(dir_base, "static", "midia"),
         os.path.join(dir_base, "Midia"),
+        os.path.join(os.getcwd(), "static", "midia"),
+        os.path.join(os.getcwd(), "Midia"),
         "static/midia",
         "Midia"
     ]
+    # 1. Busca direta pelo nome exato
     for pasta in pastas_busca:
-        caminho = os.path.join(pasta, nome_arquivo)
-        if os.path.exists(caminho):
-            ext = os.path.splitext(nome_arquivo)[1].lower()
-            tipo_mime = "video/mp4" if ext == ".mp4" else ("image/jpeg" if ext in [".jpg", ".jpeg"] else "application/octet-stream")
-            return FileResponse(caminho, media_type=tipo_mime)
+        if os.path.exists(pasta):
+            caminho = os.path.join(pasta, nome_arquivo)
+            if os.path.exists(caminho) and os.path.isfile(caminho):
+                ext = os.path.splitext(nome_arquivo)[1].lower()
+                tipo_mime = "video/mp4" if ext == ".mp4" else ("image/jpeg" if ext in [".jpg", ".jpeg"] else "application/octet-stream")
+                return FileResponse(caminho, media_type=tipo_mime)
+
+    # 2. Busca resiliente por palavras-chave (para arquivos originais na pasta Midia/ com timestamps)
+    nome_lower = nome_arquivo.lower()
+    for alias_chave, kws in MAPA_MIDIA_KEYWORDS.items():
+        if alias_chave in nome_lower or any(kw in nome_lower for kw in kws):
+            for pasta in pastas_busca:
+                if os.path.exists(pasta):
+                    for arq in os.listdir(pasta):
+                        arq_lower = arq.lower()
+                        if any(kw in arq_lower for kw in kws):
+                            caminho = os.path.join(pasta, arq)
+                            if os.path.isfile(caminho):
+                                ext = os.path.splitext(arq)[1].lower()
+                                tipo_mime = "video/mp4" if ext == ".mp4" else ("image/jpeg" if ext in [".jpg", ".jpeg"] else "application/octet-stream")
+                                return FileResponse(caminho, media_type=tipo_mime)
+
     return JSONResponse({"erro": f"Arquivo de mídia '{nome_arquivo}' não encontrado."}, status_code=404)
 
 

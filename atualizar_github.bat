@@ -29,20 +29,25 @@ echo [3/4] Gravando commit: %MSG_COMMIT%
 git commit -m "%MSG_COMMIT%"
 
 echo.
-echo [4/4] Enviando alteracoes para o GitHub: git push origin main
+echo.
+echo [4/5] Enviando alteracoes para o GitHub: git push origin main
 git push origin main
+
+echo.
+echo [5/5] Atualizando producao no Vercel: vercel --prod --yes
+call vercel --prod --yes
 
 if errorlevel 1 (
     echo.
     echo ====================================================================
-    echo  [AVISO] Ocorreu uma falha ao enviar para o GitHub.
-    echo  Verifique sua conexao ou permissoes de acesso.
+    echo  [AVISO] Verifique a publicacao manual no Vercel.
     echo ====================================================================
 ) else (
     echo.
     echo ====================================================================
-    echo  [SUCESSO] Repositorio GitHub atualizado com sucesso!
-    echo  https://github.com/jrveloso8-ai/mesa
+    echo  [SUCESSO] GitHub e Vercel atualizados com sucesso!
+    echo  GitHub: https://github.com/jrveloso8-ai/mesa
+    echo  Vercel: https://mesa-ochre.vercel.app
     echo ====================================================================
 )
 

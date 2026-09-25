@@ -206,7 +206,7 @@ body {
 
 .hero-stats-row {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr));
   gap: 1.25rem;
   margin-top: 2rem;
 }
@@ -678,15 +678,343 @@ body {
   text-decoration: none;
 }
 
-/* Responsividade */
+/* ========================================================
+   SISTEMA DE DESIGN RESPONSIVO - MULTIPLATAFORMA
+   Suporte Completo: Mobile (320px - 768px), Tablet (768px - 1024px), Desktop (1024px+)
+   ======================================================== */
+
 @media (max-width: 992px) {
-  .hero-title { font-size: 2.2rem; }
-  .phase-card, .phase-card.reverse {
+  .nav-links {
+    display: none;
+  }
+
+  .nav-container {
+    padding: 0.85rem 1.25rem;
+  }
+
+  .content-wrapper {
+    padding: 2rem 1.25rem 4rem;
+  }
+
+  .hero-title {
+    font-size: 2.2rem;
+  }
+
+  .hero-stats-row {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
+  }
+
+  .phase-card, 
+  .phase-card.reverse {
+    grid-template-columns: 1fr;
+    margin-bottom: 2.5rem;
+  }
+
+  .phase-card.reverse .phase-image-container {
+    order: 1;
+  }
+
+  .phase-card.reverse .phase-info-container {
+    order: 2;
+  }
+
+  .phase-image-container {
+    min-height: 300px;
+    max-height: 380px;
+  }
+
+  .phase-info-container {
+    padding: 2rem 1.75rem;
+  }
+
+  .flow-steps-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .compare-grid {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .nav-container {
+    padding: 0.75rem 1rem;
+  }
+
+  .brand-title {
+    font-size: 1rem;
+  }
+
+  .brand-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+  }
+
+  .btn-terminal {
+    padding: 0.45rem 0.85rem;
+    font-size: 0.78rem;
+    gap: 0.35rem;
+  }
+
+  .content-wrapper {
+    padding: 1.5rem 0.85rem 3rem;
+  }
+
+  .hero-section {
+    padding: 2rem 0.5rem 2.5rem;
+  }
+
+  .hero-pill {
+    font-size: 0.68rem;
+    padding: 0.35rem 0.75rem;
+  }
+
+  .hero-title {
+    font-size: 1.75rem;
+    line-height: 1.25;
+  }
+
+  .hero-desc {
+    font-size: 0.92rem;
+    line-height: 1.55;
+    margin-bottom: 1.75rem;
+  }
+
+  .hero-stats-row {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.75rem;
+  }
+
+  .hero-stat-card {
+    padding: 1rem 0.75rem;
+  }
+
+  .hero-stat-number {
+    font-size: 1.5rem;
+  }
+
+  .hero-stat-label {
+    font-size: 0.75rem;
+  }
+
+  /* Seção de Vídeo */
+  .video-section {
+    padding: 1.5rem 1rem;
+    margin: 2.5rem 0;
+    border-radius: 16px;
+  }
+
+  .section-title {
+    font-size: 1.45rem;
+  }
+
+  .section-desc {
+    font-size: 0.85rem;
+    margin-bottom: 1.25rem;
+  }
+
+  .video-player-container {
+    border-radius: 12px;
+    aspect-ratio: 16 / 9;
+  }
+
+  .video-highlights {
+    grid-template-columns: 1fr;
+    gap: 0.85rem;
+    margin-top: 1.25rem;
+  }
+
+  .highlight-box {
+    padding: 1rem;
+    gap: 0.75rem;
+  }
+
+  .highlight-icon {
+    font-size: 1.4rem;
+  }
+
+  /* Funil de 6 Etapas */
+  .pipeline-roadmap-section {
+    margin: 3rem 0;
+  }
+
+  .flow-steps-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.75rem;
+    margin-top: 1.5rem;
+  }
+
+  .flow-step-card {
+    padding: 1.25rem 0.75rem;
+  }
+
+  .step-icon {
+    font-size: 1.8rem;
+  }
+
+  .step-title {
+    font-size: 0.88rem;
+  }
+
+  .step-desc {
+    font-size: 0.72rem;
+  }
+
+  /* Detalhe das Fases */
+  .phases-detail-section {
+    margin: 3rem 0;
+  }
+
+  .phase-card {
+    border-radius: 16px;
+    margin-bottom: 2rem;
+  }
+
+  .phase-image-container {
+    min-height: 220px;
+    max-height: 280px;
+  }
+
+  .phase-info-container {
+    padding: 1.5rem 1.15rem;
+  }
+
+  .phase-heading {
+    font-size: 1.35rem;
+    line-height: 1.3;
+  }
+
+  .phase-text {
+    font-size: 0.85rem;
+    line-height: 1.55;
+    margin-bottom: 1.25rem;
+  }
+
+  .specs-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 0.65rem;
+    padding-top: 1rem;
+    margin-bottom: 1rem;
+  }
+
+  .spec-item {
+    padding: 0.6rem 0.75rem;
+  }
+
+  .spec-title {
+    font-size: 0.65rem;
+  }
+
+  .spec-val {
+    font-size: 0.78rem;
+  }
+
+  .rule-box {
+    font-size: 0.8rem;
+    padding: 0.85rem 1rem;
+  }
+
+  /* Comparativo */
+  .comparative-section {
+    margin: 3rem 0;
+  }
+
+  .compare-card {
+    padding: 1.5rem 1.15rem;
+  }
+
+  .compare-card h3 {
+    font-size: 1.15rem;
+    margin-bottom: 1.25rem;
+  }
+
+  .compare-list li {
+    font-size: 0.8rem;
+  }
+
+  /* Banner CTA */
+  .cta-banner {
+    padding: 2.5rem 1.25rem;
+    margin: 3rem 0 1.5rem;
+    border-radius: 18px;
+  }
+
+  .cta-banner h2 {
+    font-size: 1.65rem;
+  }
+
+  .cta-banner p {
+    font-size: 0.88rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .cta-buttons {
+    flex-direction: column;
+    width: 100%;
+    gap: 0.75rem;
+  }
+
+  .btn-large {
+    width: 100%;
+    justify-content: center;
+    padding: 0.85rem 1.25rem;
+    font-size: 0.9rem;
+    text-align: center;
+  }
+
+  .footer {
+    padding: 2rem 1rem;
+    font-size: 0.75rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .nav-brand {
+    gap: 0.5rem;
+  }
+
+  .brand-title {
+    font-size: 0.88rem;
+    letter-spacing: 0.02em;
+  }
+
+  .btn-terminal {
+    font-size: 0.72rem;
+    padding: 0.4rem 0.65rem;
+  }
+
+  .hero-title {
+    font-size: 1.45rem;
+  }
+
+  .hero-stats-row {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .specs-grid {
     grid-template-columns: 1fr;
   }
-  .phase-card.reverse .phase-image-container { order: 1; }
-  .phase-card.reverse .phase-info-container { order: 2; }
-  .phase-image-container { min-height: 280px; }
-  .compare-grid { grid-template-columns: 1fr; }
-  .nav-links { display: none; }
+
+  .phase-image-container {
+    min-height: 200px;
+    max-height: 240px;
+  }
+
+  .flow-steps-grid {
+    grid-template-columns: 1fr 1fr;
+  }
 }
+
+@media (max-width: 360px) {
+  .hero-stats-row {
+    grid-template-columns: 1fr;
+  }
+
+  .flow-steps-grid {
+    grid-template-columns: 1fr;
+  }
+}
+

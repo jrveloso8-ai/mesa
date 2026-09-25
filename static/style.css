@@ -543,7 +543,7 @@ body {
 
 .agents-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr));
   gap: 1.25rem;
 }
 
@@ -634,7 +634,7 @@ body {
 /* SEÇÃO DE GRÁFICOS DINÂMICOS */
 .charts-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 460px), 1fr));
   gap: 1.5rem;
 }
 
@@ -769,7 +769,7 @@ body {
 
 .result-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr));
   gap: 1.75rem;
   margin-bottom: 1.5rem;
 }
@@ -976,7 +976,8 @@ body {
 }
 
 .ranking-search-box {
-  min-width: 300px;
+  min-width: min(100%, 300px);
+  flex: 1 1 280px;
 }
 
 .ranking-search-box input {
@@ -1295,4 +1296,451 @@ body {
   padding: 0.3rem 0.7rem;
   border-radius: 20px;
   letter-spacing: 0.05em;
+}
+
+/* ========================================================
+   SISTEMA DE DESIGN RESPONSIVO - MULTIPLATAFORMA
+   Suporte Completo: Mobile (320px - 768px), Tablet (768px - 1024px), Desktop (1024px+)
+   ======================================================== */
+
+/* Dispositivos Intermediários / Telas Médias (<= 1100px) */
+@media (max-width: 1100px) {
+  .main-content {
+    padding: 1.5rem 1.25rem;
+  }
+  .header-container {
+    padding: 0.85rem 1.25rem;
+  }
+  .charts-grid {
+    grid-template-columns: 1fr;
+  }
+  .canvas-container {
+    height: 300px;
+  }
+}
+
+/* Tablets em Orientação Retrato e Smartphones Grandes (<= 880px) */
+@media (max-width: 880px) {
+  .header-container {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.9rem;
+    padding: 0.85rem 1rem;
+  }
+
+  .brand {
+    justify-content: flex-start;
+  }
+
+  .header-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.65rem;
+    width: 100%;
+  }
+
+  .nav-item-btn {
+    flex: 1 1 auto;
+    justify-content: center;
+    font-size: 0.78rem;
+    padding: 0.5rem 0.85rem;
+  }
+
+  .status-pill {
+    flex: 0 0 auto;
+    font-size: 0.78rem;
+    padding: 0.4rem 0.75rem;
+  }
+
+  .btn-primary {
+    width: 100%;
+    justify-content: center;
+    padding: 0.75rem 1.2rem;
+    font-size: 0.92rem;
+  }
+
+  .metrics-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
+  }
+
+  .result-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Smartphones Padrão e Tablets Menores (<= 768px) */
+@media (max-width: 768px) {
+  .main-content {
+    padding: 1.25rem 0.85rem;
+    gap: 1.5rem;
+  }
+
+  .brand h1 {
+    font-size: 1.2rem;
+  }
+
+  .subtitle {
+    font-size: 0.72rem;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  /* Abas do Dashboard com Touch Scroll Suave */
+  .tabs-nav-bar {
+    margin: 1.5rem 0 1rem;
+    padding-bottom: 0.5rem;
+    display: flex;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scroll-snap-type: x mandatory;
+    scrollbar-width: none;
+    gap: 0.5rem;
+  }
+
+  .tabs-nav-bar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .tab-btn {
+    flex-shrink: 0;
+    scroll-snap-align: start;
+    padding: 0.65rem 0.95rem;
+    font-size: 0.82rem;
+    gap: 0.45rem;
+  }
+
+  .tab-indicator {
+    display: none;
+  }
+
+  /* Seletor de Ativos */
+  .asset-selector-container {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.75rem;
+    padding: 0.85rem;
+  }
+
+  .asset-quick-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    width: 100%;
+  }
+
+  .quick-asset-btn {
+    flex: 1 1 calc(25% - 0.4rem);
+    text-align: center;
+    padding: 0.45rem 0.5rem;
+    font-size: 0.76rem;
+  }
+
+  .asset-search-form {
+    width: 100%;
+    display: flex;
+    gap: 0.5rem;
+  }
+
+  .asset-search-form input {
+    flex: 1;
+    width: auto;
+    font-size: 16px; /* Previne auto-zoom no Safari iOS */
+    padding: 0.5rem 0.75rem;
+  }
+
+  .asset-search-form button {
+    padding: 0.5rem 0.9rem;
+    white-space: nowrap;
+  }
+
+  /* Gráficos em Mobile */
+  .chart-card {
+    padding: 1.15rem 0.9rem;
+    border-radius: 14px;
+  }
+
+  .canvas-container {
+    height: 250px;
+  }
+
+  .chart-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+
+  .chart-legend {
+    gap: 0.6rem;
+    font-size: 0.72rem;
+  }
+
+  /* Card de Deliberação */
+  .result-card {
+    padding: 1.25rem 1rem;
+    border-radius: 14px;
+  }
+
+  .result-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 1rem;
+  }
+
+  .result-actions {
+    width: 100%;
+  }
+
+  .btn-download {
+    width: 100%;
+    justify-content: center;
+    text-align: center;
+    padding: 0.75rem 1rem;
+    font-size: 0.88rem;
+  }
+
+  /* Gregas em 2x2 */
+  .gregas-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.5rem;
+  }
+
+  .grega-card {
+    padding: 0.65rem 0.45rem;
+  }
+
+  .grega-val {
+    font-size: 0.95rem;
+  }
+
+  /* Funil e Ranking 100 Ativos */
+  .ranking-card {
+    padding: 1.25rem 0.85rem;
+  }
+
+  .ranking-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 1rem;
+  }
+
+  .ranking-search-box {
+    width: 100%;
+    min-width: 100%;
+  }
+
+  .ranking-search-box input {
+    font-size: 16px;
+    padding: 0.65rem 0.85rem;
+  }
+
+  .funnel-stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.65rem;
+  }
+
+  .funnel-stat-card {
+    padding: 0.75rem 0.85rem;
+  }
+
+  .funnel-stat-val {
+    font-size: 1.4rem;
+  }
+
+  .ranking-filters-bar {
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 0.75rem;
+    gap: 0.4rem;
+  }
+
+  .filter-btn {
+    flex-shrink: 0;
+    padding: 0.35rem 0.7rem;
+    font-size: 0.72rem;
+  }
+
+  .ranking-table-wrapper {
+    max-height: 480px;
+    -webkit-overflow-scrolling: touch;
+    border-radius: 8px;
+  }
+
+  .ranking-table th,
+  .ranking-table td {
+    padding: 0.6rem 0.5rem;
+    font-size: 0.75rem;
+  }
+
+  /* Console */
+  .console-body {
+    height: 160px;
+    font-size: 0.74rem;
+    padding: 0.75rem;
+  }
+
+  /* Banner de Auditoria Demo */
+  .demo-banner {
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 1rem;
+    gap: 0.75rem;
+  }
+
+  .demo-banner-badge {
+    align-self: flex-start;
+  }
+}
+
+/* Smartphones Compactos (<= 480px) */
+@media (max-width: 480px) {
+  .brand-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+  }
+
+  .brand-icon svg {
+    width: 20px;
+    height: 20px;
+  }
+
+  .brand h1 {
+    font-size: 1.05rem;
+  }
+
+  .header-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .nav-item-btn,
+  .status-pill {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .metrics-grid {
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+  }
+
+  .metric-card {
+    padding: 0.95rem;
+  }
+
+  .metric-value {
+    font-size: 1.2rem;
+  }
+
+  .section-header h2 {
+    font-size: 1.15rem;
+  }
+
+  .progress-bar-wrapper {
+    padding: 0.75rem 0.85rem;
+  }
+
+  .progress-step-text {
+    font-size: 0.78rem;
+  }
+
+  .progress-pct {
+    font-size: 0.82rem;
+  }
+
+  .agent-card {
+    padding: 1rem;
+    gap: 0.5rem;
+  }
+
+  .agent-avatar {
+    width: 36px;
+    height: 36px;
+    font-size: 1.25rem;
+  }
+
+  .agent-info h3 {
+    font-size: 0.88rem;
+  }
+
+  .agent-desc {
+    font-size: 0.76rem;
+  }
+
+  .quick-asset-btn {
+    flex: 1 1 calc(33.333% - 0.4rem);
+  }
+
+  .canvas-container {
+    height: 220px;
+  }
+
+  .funnel-stats-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .funnel-stat-card {
+    padding: 0.65rem 0.75rem;
+  }
+
+  .funnel-stat-label {
+    font-size: 0.62rem;
+  }
+
+  .funnel-stat-val {
+    font-size: 1.25rem;
+  }
+
+  .funnel-stat-sub {
+    font-size: 0.65rem;
+  }
+
+  .result-header h2 {
+    font-size: 1.25rem;
+  }
+
+  .params-table th,
+  .params-table td {
+    padding: 0.5rem 0.5rem;
+    font-size: 0.74rem;
+  }
+
+  .info-block {
+    padding: 0.85rem;
+  }
+
+  .cvm-disclaimer {
+    font-size: 0.68rem;
+    padding: 0.75rem;
+  }
+
+  .app-footer {
+    padding: 1.25rem 0.75rem;
+    font-size: 0.7rem;
+  }
+}
+
+/* Telas Ultra Estreitas (<= 360px - Galaxy Fold Outer, iPhone SE 1st gen) */
+@media (max-width: 360px) {
+  .main-content {
+    padding: 0.85rem 0.5rem;
+  }
+
+  .funnel-stats-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .gregas-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .quick-asset-btn {
+    flex: 1 1 calc(50% - 0.4rem);
+  }
 }

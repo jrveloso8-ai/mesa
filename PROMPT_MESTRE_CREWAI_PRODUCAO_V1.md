@@ -94,49 +94,68 @@ projeto_crewai_enterprise/
 ---
 
 #### Fase 0: Diagnóstico de Ambiente, CLI & Segurança de Rede
-1. **Ambiente & Scripts:** Qual é o sistema operacional alvo para execução local? (Se Windows, garantir que scripts `.bat` usem `chcp 65001 >nul`, UTF-8 sem BOM e quebras CRLF).
-2. **Binding de Rede Local:** O servidor local escutará estritamente em `127.0.0.1` (localhost) ou há necessidade deliberada de escuta em rede corporativa (`HOST`) sob autenticação?
-3. **Gerenciador de Pacotes:** O ambiente utilizará `uv` (recomendado para máxima velocidade) ou `pip/venv`?
+1. **Ambiente & Scripts:** Qual é o sistema operacional alvo para execução local?
+   * *💡 Recomendação de Engenharia:* Se Windows, salvar scripts `.bat` estritamente em **UTF-8 sem BOM**, quebras de linha **CRLF**, com cabeçalho contendo `@echo off`, `chcp 65001 >nul` e `setlocal enabledelayedexpansion`. Previne falhas fatais de sintaxe no `cmd.exe` (`0B`, `cho`, `MESA`).
+2. **Binding de Rede Local:** O servidor local escutará em qual endereço IP?
+   * *💡 Recomendação de Engenharia:* Escutar estritamente em `127.0.0.1` (localhost) por padrão. Nunca usar `0.0.0.0` sem autenticação ativa, para evitar que dispositivos na mesma rede Wi-Fi/corporativa acessem a aplicação ou extraiam segredos do `.env`.
+3. **Gerenciador de Pacotes:** Qual gerenciador de pacotes utilizar?
+   * *💡 Recomendação de Engenharia:* Utilizar `uv` (`uv pip install` ou `pyproject.toml`). É de 10 a 100 vezes mais rápido que o `pip` tradicional e garante resolução determinística de dependências.
 
 ---
 
 #### Fase 1: Objetivo de Negócio, LLM & Resiliência a Cotas
 1. **Problema & Compliance:** Qual é o problema específico a ser resolvido e quais marcos regulatórios ou legais se aplicam (ex: CVM, LGPD, CFM, OAB, BACEN, ISO)?
-2. **Cadeia de Contingência Multi-Modelo (Anti-429):** Quais modelos de LLM comporão a esteira de fallback para contingência de cota (`RESOURCE_EXHAUSTED`)? (Ex: Primário `gemini-flash-latest` $\rightarrow$ Secundário `gemini-2.5` $\rightarrow$ Terciário `gemini-2.0`).
-3. **Controle de Iterações:** Qual o teto de iterações (`max_iter=2` ou `3`) para agentes com ferramentas de pesquisa web para evitar esgotamento de quota e loops infinitos?
+   * *💡 Recomendação de Engenharia:* Definir a norma de conformidade desde o início para que o agente redator final gere documentos executivos auditáveis com disclaimers legais obrigatórios.
+2. **Cadeia de Contingência Multi-Modelo (Anti-429):** Quais modelos de LLM comporão a esteira de fallback para contingência de cota (`RESOURCE_EXHAUSTED`)?
+   * *💡 Recomendação de Engenharia:* Configurar uma cascata automática: Primário `gemini-flash-latest` $\rightarrow$ Secundário `gemini-2.5-flash` $\rightarrow$ Terciário `gemini-2.0-flash`. Nunca acoplar a esteira a um único modelo estático.
+3. **Controle de Iterações:** Qual o teto de iterações para agentes que utilizam busca web ou ferramentas de scraping?
+   * *💡 Recomendação de Engenharia:* Travar em `max_iter=2` ou `max_iter=3`. Valores superiores geram loops infinitos, latência proibitiva e estouro imediato da cota de requisições por minuto.
 
 ---
 
 #### Fase 2: Divisão de Poderes, Personas & Gatekeeper de Veto
-1. **Esteira de Agentes (`config/agents.yaml`):** Quais especialistas comporão o fluxo sequencial ou hierárquico (ex: Pesquisa $\rightarrow$ Análise $\rightarrow$ Estratégia $\rightarrow$ Risco $\rightarrow$ Publicação)?
-2. **Veto Programático em Código:** Qual agente possui autoridade máxima de veto? Qual é a **Regra de Ouro Inegociável** que dispara o Veto Automático em Python (`tools/policy_gate.py`), cancelando qualquer parecer positivo e forçando postura defensiva?
+1. **Esteira de Agentes (`config/agents.yaml`):** Quais especialistas comporão o fluxo sequencial ou hierárquico?
+   * *💡 Recomendação de Engenharia:* Segregar competências: Pesquisa $\rightarrow$ Análise de Domínio $\rightarrow$ Estratégia $\rightarrow$ Gate de Risco/Auditoria $\rightarrow$ Redação Final. Agentes intermediários devem gerar saídas estruturadas e concisas; apenas o Publisher gera o relatório final.
+2. **Veto Programático em Código:** Qual agente possui autoridade máxima de veto e qual é a Regra de Ouro Inegociável do negócio?
+   * *💡 Recomendação de Engenharia:* Implementar o Gatekeeper diretamente em **código Python determinístico** (`tools/policy_gate.py`). Se os parâmetros violarem o piso (ex: $R/R < 1.50:1$, margem negativa ou falta de certidão), o código veta compulsoriamente a operação, sem permitir que a IA contorne a decisão por viés cognitivo.
 
 ---
 
 #### Fase 3: Anti-Alucinação, Provedores Oficiais & Matemática Determinística
-1. **Cálculos Determinísticos em Python (`tools/`):** Quais fórmulas matemáticas, métricas financeiras, juros, volatilidade ou prazos DEVEM rodar em Python puro sob `@tool`, sem que a IA faça contas de cabeça?
-2. **Proveniência Real de Dados:** Quais APIs oficiais fornecerão os dados em tempo real? Se a API externa falhar, qual é a conduta: interrupção controlada com status indisponível ou uso de base histórica auditada (`[DADO_HISTORICO_AUDITADO]`)?
+1. **Cálculos Determinísticos em Python (`tools/`):** Quais fórmulas matemáticas, métricas financeiras, juros ou prazos precisam ser processados?
+   * *💡 Recomendação de Engenharia:* Toda matemática deve rodar em Python puro sob `@tool`. A IA **nunca** deve fazer contas de cabeça no texto do prompt.
+2. **Proveniência Real de Dados:** Quais APIs oficiais fornecerão os dados em tempo real e qual a conduta em caso de falha externa?
+   * *💡 Recomendação de Engenharia:* Utilizar apenas fontes autenticadas oficiais. Se a API falhar, declare formalmente como dado indisponível ou utilize base histórica rotulada com `[DADO_HISTORICO_AUDITADO]`. Tolerância zero com dados fabricados.
 
 ---
 
 #### Fase 4: Segurança de Rotas, Arquivos & Prevenção de Path Traversal
-1. **Download de Mídias/Relatórios:** O sistema servirá arquivos para download (PDF, imagens, vídeos)? Quais extensões serão autorizadas na **whitelist estrita** (ex: `.pdf`, `.jpg`, `.jpeg`, `.png`, `.webp`, `.mp4`)?
-2. **Bloqueio a Path Traversal (CWE-22):** Como será implementado o confinamento de arquivos em disco? (Obrigatório: remoção de `:path`, rejeição de `..` e validação canônica via `os.path.realpath()`).
-3. **Zero Endpoints de Debug:** Confirma a exclusão total de endpoints de depuração ou listagem de diretórios (`/api/debug-files`) no código de produção?
+1. **Download de Mídias/Relatórios & Whitelist:** O sistema servirá arquivos para download (PDF, imagens, vídeos)?
+   * *💡 Recomendação de Engenharia:* Whitelist estrita de extensões autorizadas (ex: apenas `.pdf`, `.jpg`, `.jpeg`, `.png`, `.webp`, `.mp4`). Bloquear compulsoriamente `.env`, `.py`, `.json`, `.key`, `.yml`.
+2. **Bloqueio a Path Traversal (CWE-22):** Como será implementado o confinamento de arquivos em disco?
+   * *💡 Recomendação de Engenharia:* **Nunca usar `:path`** em rotas de download. Usar `os.path.basename()` na entrada e validar que o caminho canônico `os.path.realpath(caminho)` inicia estritamente com `os.path.realpath(pasta) + os.sep`.
+3. **Zero Endpoints de Debug:** Confirma a exclusão de endpoints de depuração em produção?
+   * *💡 Recomendação de Engenharia:* Remover completamente rotas como `/api/debug-files` antes de expor a aplicação. Elas fornecem reconhecimento gratuito da árvore de diretórios a invasores.
 
 ---
 
 #### Fase 5: Design System Responsivo Multiplataforma (Mobile, Tablet, Desktop)
-1. **Mobile First & Grids Fluidos:** A interface web será acessada por smartphones e tablets? Como os grids se adaptarão em telas de 360px a 768px (ex: uso obrigatório de `minmax(min(100%, ...), 1fr)`)?
-2. **Gráficos Dinâmicos & Telas Touch:** Se houver gráficos (Chart.js), eles possuem `maintainAspectRatio: false`, altura dinâmica (`clamp()`) e resize na troca de abas?
-3. **Tabelas & Formulários:** As tabelas com muitas colunas estão envolvidas em contêineres com `-webkit-overflow-scrolling: touch;`? Os campos de texto possuem `font-size: 16px` para evitar zoom involuntário no Safari iOS?
+1. **Mobile First & Grids Fluidos:** A interface web será acessada por smartphones e tablets?
+   * *💡 Recomendação de Engenharia:* Grids com `minmax(min(100%, 340px), 1fr)`. Nunca utilizar larguras mínimas fixas em pixels (`minmax(360px, 1fr)`), pois causam overflow horizontal em telas de 360px a 390px.
+2. **Gráficos Dinâmicos (Chart.js):** Se houver gráficos interativos, como garantir legibilidade em telas verticais?
+   * *💡 Recomendação de Engenharia:* Configurar `responsive: true`, `maintainAspectRatio: false`, contêiner com altura flexível (`clamp(220px, 45vw, 300px)`) e disparar `.resize()` na troca de abas.
+3. **Tabelas Grandes & Inputs:** Como exibir tabelas de dados sem estourar o layout no mobile?
+   * *💡 Recomendação de Engenharia:* Envolver tabelas em contêineres com `-webkit-overflow-scrolling: touch; overflow-x: auto;` e cabeçalho `position: sticky`. Em inputs de texto, usar `font-size: 16px` para impedir o auto-zoom incômodo do Safari iOS.
 
 ---
 
 #### Fase 6: Paridade Cloud (Vercel) vs. Local & Testes Automatizados
-1. **Arquitetura Dual de Deploy:** Haverá separação transparente entre o Modo Demonstração na nuvem (Vercel Serverless com banner explicativo) e a Esteira Completa com agentes ao vivo no servidor local?
-2. **Configuração de Assets Nuvem:** As pastas de mídia e templates estão listadas em `includeFiles` no `vercel.json` e com nomes estritamente em minúsculas (para compatibilidade com Linux)?
-3. **Bateria de Testes Automatizados (`pytest`):** Quais testes de unidade, integração e **simulação de invasão/ataques de traversal** com `TestClient` serão criados para homologar a entrega?
+1. **Arquitetura Dual de Deploy:** Como conciliar as restrições serverless da nuvem com o processamento pesado de agentes locais?
+   * *💡 Recomendação de Engenharia:* Adotar a **Arquitetura Dual Transparente**: Nuvem/Vercel opera como Showcase/Demonstrativo rápido com dados de referência e banner transparente de `MODO DEMO`; Servidor Local dedicado roda a esteira ao vivo sem timeouts.
+2. **Configuração de Assets Nuvem (`vercel.json`):** Como garantir que imagens e mídias não retornem 404 na nuvem?
+   * *💡 Recomendação de Engenharia:* Declarar todas as pastas estáticas em `includeFiles` no `vercel.json` e padronizar nomes de pastas estritamente em minúsculas (`midia/`), eliminando erros de case-sensitivity no Linux.
+3. **Bateria de Testes Automatizados:** Quais testes com `pytest` devem ser obrigatórios?
+   * *💡 Recomendação de Engenharia:* Criar suíte completa com `pytest` e `TestClient`: testes de integridade da esteira, cálculo determinístico exato, veto de risco e **testes de invasão real** atacando rotas com payloads maliciosos (`/midia/../../.env`).
 
 ---
 

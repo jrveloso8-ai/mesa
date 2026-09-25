@@ -209,27 +209,40 @@ Este documento registra formalmente todos os incidentes, gargalos de produção,
 
 Para garantir que novos projetos nasçam imunes a todos os problemas documentados nesta base, a IA deve **obrigatoriamente fazer as seguintes perguntas estruturadas** ao desenvolvedor antes de escrever a primeira linha de código:
 
-### Perguntas de Diagnóstico & Proteções Conectadas
-1. **Ambiente & Host:**
+### Perguntas de Diagnóstico com Recomendações de Engenharia
+1. **Ambiente & Host Local:**
    * *Pergunta:* "O servidor local escutará estritamente em `127.0.0.1` e os scripts Windows usarão UTF-8 sem BOM com `chcp 65001`?"
-   * *O que previne:* Erros de sintaxe em batch (`0B`, `cho`) e exposição de portas em redes Wi-Fi locais.
-2. **Resiliência a Quotas de IA:**
+   * *💡 Recomendação de Engenharia:* **Sim.** Salvar scripts `.bat` em UTF-8 sem BOM, quebras CRLF e cabeçalho com `@echo off`, `chcp 65001 >nul`, `setlocal enabledelayedexpansion`. Travar o host local em `127.0.0.1`.
+   * *O que previne:* Erros de sintaxe em batch (`0B`, `cho`, `MESA`) e exposição indevida do `.env` na rede Wi-Fi/LAN.
+
+2. **Resiliência a Quotas de IA (Anti-429):**
    * *Pergunta:* "Qual é a cadeia de contingência multi-modelo configurada para mitigar o erro `429 RESOURCE_EXHAUSTED` e qual o teto de `max_iter` dos agentes de busca?"
-   * *O que previne:* Travamento da esteira no meio da execução por estouro de cota por minuto/dia.
+   * *💡 Recomendação de Engenharia:* Configurar a cascata `gemini-flash-latest` $\rightarrow$ `gemini-2.5-flash` $\rightarrow$ `gemini-2.0-flash`. Fixar `max_iter=2` ou `3` para agentes com busca web.
+   * *O que previne:* Travamento da esteira no meio da execução por estouro de cota de tokens/minuto.
+
 3. **Anti-Alucinação & Cálculos:**
    * *Pergunta:* "Quais cálculos e regras de negócio DEVEM rodar em Python puro sob `@tool` em vez de depender de matemática gerada por IA?"
+   * *💡 Recomendação de Engenharia:* **100% dos cálculos numéricos.** A IA nunca deve fazer contas de cabeça no prompt. Delegar preços, juros, taxas e volatilidade a funções Python determinísticas.
    * *O que previne:* Alucinações de preços, múltiplos, impostos ou taxas inventadas pelo modelo.
-4. **Veto Programático do Negócio:**
+
+4. **Veto Programático do Negócio (Gatekeeper):**
    * *Pergunta:* "Qual é a regra de corte mandatória do negócio que será implementada como Veto Automático em código (`tools/policy_gate.py`), independente de opinião textual da IA?"
+   * *💡 Recomendação de Engenharia:* Definir um limiar quantitativo inegociável (ex: $R/R \ge 1.50:1$, margem líquida $> 0$, ausência de certidão negativa) e codificar um veto compulsório em Python que force postura defensiva.
    * *O que previne:* Aprovação de operações desastrosas por viés cognitivo ou alucinação do modelo.
-5. **Segurança de Arquivos & Mídia:**
+
+5. **Segurança de Arquivos & Mídia (Anti-Path Traversal):**
    * *Pergunta:* "Haverá rotas de download de mídias ou relatórios? Como será garantida a whitelist de extensões e o confinamento estrito via `os.path.realpath()` para impedir Path Traversal (CWE-22)?"
+   * *💡 Recomendação de Engenharia:* **Nunca usar `:path`** em rotas de download. Usar whitelist estrita de extensões permitidas (`.pdf`, `.jpg`, `.png`, `.webp`, `.mp4`) e validar que `os.path.realpath(caminho).startswith(pasta_real + os.sep)`. Banir `/api/debug-files`.
    * *O que previne:* Vazamento de arquivos confidenciais (`.env`, chaves privadas, código-fonte).
-6. **Design System Responsivo:**
+
+6. **Design System Responsivo Multiplataforma:**
    * *Pergunta:* "A interface possui suporte mobile nato (320px–768px) com `minmax(min(100%, ...), 1fr)`, tabelas com scroll touch e gráficos dinâmicos com auto-redimensionamento?"
-   * *O que previne:* Telas quebradas, barras de rolagem horizontal indesejadas e auto-zoom no Safari iOS.
+   * *💡 Recomendação de Engenharia:* Aplicar `minmax(min(100%, 340px), 1fr)` em grids, Chart.js com `maintainAspectRatio: false` e `.resize()` na troca de abas, `-webkit-overflow-scrolling: touch` em tabelas e `font-size: 16px` em inputs.
+   * *O que previne:* Telas quebradas, barras de rolagem horizontal não planejadas e auto-zoom no Safari iOS.
+
 7. **Paridade Cloud Serverless vs. Local:**
    * *Pergunta:* "Como será tratada a limitação de timeout e filesystem serverless na nuvem (ex: Vercel) frente ao processamento completo de agentes locais? As pastas estáticas estão listadas em `includeFiles` do `vercel.json` em minúsculas?"
+   * *💡 Recomendação de Engenharia:* Adotar a **Arquitetura Dual Transparente**: Nuvem/Vercel opera como Showcase/Demonstrativo rápido com dados de referência e banner transparente de `MODO DEMO`; Servidor Local dedicado roda a esteira ao vivo sem timeouts. Listar `includeFiles` com pastas em minúsculas (`midia/`).
    * *O que previne:* Imagens retornando 404 na nuvem e tarefas em background congeladas prematuramente.
 
 

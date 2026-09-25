@@ -1,8 +1,6 @@
 .env
 .env.*
 Midia/
-static/midia/*.mp4
-*.mp4
 *.pdf
 output/
 tests/

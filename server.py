@@ -688,22 +688,6 @@ def baixar_pdf():
     return JSONResponse({"erro": "Nenhum relatório PDF disponível no momento."}, status_code=404)
 
 
-@app.get("/api/debug-files")
-def debug_files():
-    dir_base = os.path.dirname(os.path.abspath(__file__))
-    p_static = os.path.join(dir_base, "static")
-    p_midia = os.path.join(p_static, "midia")
-    return JSONResponse({
-        "dir_base": dir_base,
-        "cwd": os.getcwd(),
-        "dir_base_files": os.listdir(dir_base) if os.path.exists(dir_base) else [],
-        "static_exists": os.path.exists(p_static),
-        "static_files": os.listdir(p_static) if os.path.exists(p_static) else [],
-        "midia_exists": os.path.exists(p_midia),
-        "midia_files": os.listdir(p_midia) if os.path.exists(p_midia) else []
-    })
-
-
 @app.get("/apresentacao")
 @app.get("/apresentacao.html")
 def pagina_apresentacao():
@@ -724,44 +708,72 @@ MAPA_MIDIA_KEYWORDS = {
     "research_publisher.jpg": ["publisher", "research"]
 }
 
+EXTENSOES_MIDIA_PERMITIDAS = {".jpg", ".jpeg", ".png", ".webp", ".mp4"}
 
-@app.get("/midia/{nome_arquivo:path}")
-@app.get("/static/midia/{nome_arquivo:path}")
+
+@app.get("/midia/{nome_arquivo}")
+@app.get("/static/midia/{nome_arquivo}")
 def servir_midia_direta(nome_arquivo: str):
+    """
+    Serve arquivos estáticos de mídia de forma estritamente confinada à pasta permitida,
+    com validação contra Path Traversal (CWE-22) e whitelist de extensões de mídia.
+    """
+    if not nome_arquivo:
+        raise HTTPException(status_code=400, detail="Nome de arquivo não especificado.")
+
+    # 1. Defesa anti-traversal: bloqueia separadores de caminho e caracteres de escape
+    if "/" in nome_arquivo or "\\" in nome_arquivo or ".." in nome_arquivo:
+        raise HTTPException(status_code=400, detail="Identificador de arquivo inválido.")
+
+    nome_limpo = os.path.basename(nome_arquivo).strip()
+    if nome_limpo != nome_arquivo or nome_limpo.startswith("."):
+        raise HTTPException(status_code=400, detail="Identificador de arquivo inválido.")
+
+    # 2. Whitelist estrita de extensões permitidas para evitar vazamento de código/segredos
+    ext = os.path.splitext(nome_limpo)[1].lower()
+    if ext not in EXTENSOES_MIDIA_PERMITIDAS:
+        raise HTTPException(status_code=403, detail="Extensão de arquivo não autorizada.")
+
+    tipo_mime = "video/mp4" if ext == ".mp4" else ("image/jpeg" if ext in [".jpg", ".jpeg"] else f"image/{ext.lstrip('.')}")
+
     dir_base = os.path.dirname(os.path.abspath(__file__))
-    pastas_busca = [
+    pastas_candidatas = [
         os.path.join(dir_base, "static", "midia"),
+        os.path.join(dir_base, "midia"),
         os.path.join(dir_base, "Midia"),
         os.path.join(os.getcwd(), "static", "midia"),
+        os.path.join(os.getcwd(), "midia"),
         os.path.join(os.getcwd(), "Midia"),
-        "static/midia",
-        "Midia"
     ]
-    # 1. Busca direta pelo nome exato
-    for pasta in pastas_busca:
-        if os.path.exists(pasta):
-            caminho = os.path.join(pasta, nome_arquivo)
-            if os.path.exists(caminho) and os.path.isfile(caminho):
-                ext = os.path.splitext(nome_arquivo)[1].lower()
-                tipo_mime = "video/mp4" if ext == ".mp4" else ("image/jpeg" if ext in [".jpg", ".jpeg"] else "application/octet-stream")
-                return FileResponse(caminho, media_type=tipo_mime)
 
-    # 2. Busca resiliente por palavras-chave (para arquivos originais na pasta Midia/ com timestamps)
-    nome_lower = nome_arquivo.lower()
+    # 3. Busca direta pelo nome exato com verificação de confinamento canônico (realpath)
+    for pasta in pastas_candidatas:
+        if os.path.isdir(pasta):
+            pasta_real = os.path.realpath(pasta)
+            caminho_candidato = os.path.realpath(os.path.join(pasta_real, nome_limpo))
+            # Garante que o arquivo resolvido reside estritamente dentro da pasta de mídia autorizada
+            if (caminho_candidato.startswith(pasta_real + os.sep) or caminho_candidato == pasta_real) and os.path.isfile(caminho_candidato):
+                return FileResponse(caminho_candidato, media_type=tipo_mime)
+
+    # 4. Busca resiliente por palavras-chave com validação canônica e whitelist
+    nome_lower = nome_limpo.lower()
     for alias_chave, kws in MAPA_MIDIA_KEYWORDS.items():
         if alias_chave in nome_lower or any(kw in nome_lower for kw in kws):
-            for pasta in pastas_busca:
-                if os.path.exists(pasta):
-                    for arq in os.listdir(pasta):
-                        arq_lower = arq.lower()
-                        if any(kw in arq_lower for kw in kws):
-                            caminho = os.path.join(pasta, arq)
-                            if os.path.isfile(caminho):
-                                ext = os.path.splitext(arq)[1].lower()
-                                tipo_mime = "video/mp4" if ext == ".mp4" else ("image/jpeg" if ext in [".jpg", ".jpeg"] else "application/octet-stream")
-                                return FileResponse(caminho, media_type=tipo_mime)
+            for pasta in pastas_candidatas:
+                if os.path.isdir(pasta):
+                    pasta_real = os.path.realpath(pasta)
+                    try:
+                        for arq in os.listdir(pasta_real):
+                            arq_ext = os.path.splitext(arq)[1].lower()
+                            if arq_ext in EXTENSOES_MIDIA_PERMITIDAS and any(kw in arq.lower() for kw in kws):
+                                caminho_candidato = os.path.realpath(os.path.join(pasta_real, arq))
+                                if (caminho_candidato.startswith(pasta_real + os.sep)) and os.path.isfile(caminho_candidato):
+                                    mime = "video/mp4" if arq_ext == ".mp4" else ("image/jpeg" if arq_ext in [".jpg", ".jpeg"] else f"image/{arq_ext.lstrip('.')}")
+                                    return FileResponse(caminho_candidato, media_type=mime)
+                    except OSError:
+                        continue
 
-    return JSONResponse({"erro": f"Arquivo de mídia '{nome_arquivo}' não encontrado."}, status_code=404)
+    raise HTTPException(status_code=404, detail=f"Arquivo de mídia '{nome_limpo}' não encontrado.")
 
 
 # Servir arquivos estáticos (HTML/CSS/JS)
@@ -798,8 +810,9 @@ def abrir_navegador(porta):
 def run_server():
     import uvicorn
     porta = encontrar_porta_livre(8000)
+    host = os.getenv("HOST", "127.0.0.1")
     threading.Thread(target=abrir_navegador, args=(porta,), daemon=True).start()
-    uvicorn.run(app, host="0.0.0.0", port=porta)
+    uvicorn.run(app, host=host, port=porta)
 
 
 if __name__ == "__main__":

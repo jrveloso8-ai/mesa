@@ -170,7 +170,27 @@ Este documento registra formalmente todos os incidentes, gargalos de produção,
 
 ---
 
-## 7. RESUMO DE DIRETRIZES PARA NOVOS PROJETOS
+## 7. SEGURANÇA DE ROTAS, PATH TRAVERSAL (CWE-22) E EXPOSIÇÃO LOCAL
+
+### Erro 7.1: Path Traversal em Rotas Dinâmicas de Mídia
+* **Sintoma / Risco:**
+  O uso do conversor `{nome_arquivo:path}` no FastAPI aceitava sequências de escape (`/midia/../../.env`), permitindo leitura arbitrária de arquivos confidenciais do servidor caso executado em rede local (`host="0.0.0.0"`).
+* **Correções Implementadas:**
+  1. Remoção do conversor `:path`: rota restrita a `@app.get("/midia/{nome_arquivo}")`.
+  2. Validação antecipada contra barras e pontos duplos (`/`, `\`, `..`).
+  3. Whitelist estrita de extensões permitidas: apenas `.jpg`, `.jpeg`, `.png`, `.webp`, `.mp4`. Qualquer outra extensão é rejeitada com código 403.
+  4. Validação canônica de confinamento: `os.path.realpath(caminho)` deve obrigatoriamente iniciar com `os.path.realpath(pasta) + os.sep`.
+  5. Binding de rede local seguro: `server.py` escuta em `127.0.0.1` (localhost) por padrão, impedindo que dispositivos na mesma rede Wi-Fi/corporativa acessem o servidor local sem autorização explícita.
+
+### Erro 7.2: Exposição de Estrutura de Arquivos em Endpoints de Depuração
+* **Sintoma / Risco:**
+  O endpoint `/api/debug-files` listava o conteúdo dos diretórios raiz e estáticos sem autenticação.
+* **Correção:**
+  Remoção total e definitiva de endpoints de depuração em código de produção.
+
+---
+
+## 8. RESUMO DE DIRETRIZES PARA NOVOS PROJETOS
 
 | Domínio | Regra de Ouro |
 | :--- | :--- |
@@ -181,3 +201,5 @@ Este documento registra formalmente todos os incidentes, gargalos de produção,
 | **Risco** | Veto programático em código não negociável. Risco/Retorno $< 1.50:1$ = Caixa 100%. |
 | **Frontend** | Toda interface web deve ser responsiva por padrão em mobile, tablet e desktop, sem overflow horizontal. |
 | **Deploy** | Configurar `vercel.json` com `includeFiles` explícito para todos os diretórios estáticos e templates. |
+| **Segurança** | Jamais usar `:path` sem validação canônica `realpath`. Whitelist de extensões e zero endpoints de debug. |
+

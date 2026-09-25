@@ -58,3 +58,13 @@ Este arquivo define as regras de desenvolvimento obrigatórias e inegociáveis p
   3. **Gráficos Chart.js:** Manter `responsive: true`, `maintainAspectRatio: false` e redimensionamento via `.resize()` na troca de abas.
   4. **Inputs:** `font-size: 16px` mínimo em mobile para evitar auto-zoom no Safari iOS.
   5. **Tabelas Grandes:** Envolvidas em contêineres com `-webkit-overflow-scrolling: touch;`.
+
+---
+
+### 8. SEGURANÇA DE ROTAS & ANTI-PATH TRAVERSAL (CWE-22)
+* **Sem `:path` Irrestrito:** Rotas de download ou arquivos nunca devem utilizar conversores `:path` sem validação rigorosa.
+* **Validação Canônica (Realpath):** Todo arquivo servido deve ter seu caminho canônico validado com `os.path.realpath()` garantindo confinamento estrito dentro do diretório autorizado (`startswith(pasta_real + os.sep)`).
+* **Whitelist de Extensões:** Apenas extensões homologadas (`.jpg`, `.jpeg`, `.png`, `.webp`, `.mp4` para mídias; `.pdf` para relatórios) podem ser transmitidas. Extensões de código ou dados sensíveis (`.env`, `.py`, `.json`, `.key`, `.yml`) são compulsoriamente bloqueadas.
+* **Zero Endpoints de Debug:** Endpoints que expõem listagens de arquivos ou detalhes do sistema de arquivos (`/api/debug-files`, etc.) são proibidos em produção.
+* **Binding Seguro:** Em ambiente de desenvolvimento/local, servidores devem escutar por padrão em `127.0.0.1` (localhost) em vez de `0.0.0.0`.
+

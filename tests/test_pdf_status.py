@@ -79,9 +79,44 @@ def test_busca_macro_sem_fabricacao_em_falha(monkeypatch):
     assert "Nenhum dado foi fabricado" in resultado["aviso"]
 
 
-def test_screener_ibrx100_sem_scores_hardcoded():
+def test_screener_ibrx100_sem_scores_hardcoded(tmp_path, monkeypatch):
     """Garante que o screener gera ranking a partir da cesta de liquidez sem listas estáticas com scores fake."""
+    import json
+    import tools.screener_ibrx100 as mod_screener
     from tools.screener_ibrx100 import gerar_ranking_completo_ibrx100, obter_estatisticas_funil
+
+    # Roda em tmp_path para isolar do output/ real
+    monkeypatch.chdir(tmp_path)
+    os.makedirs("output", exist_ok=True)
+    caminho_json = os.path.join("output", "resultado_pos_gate.json")
+
+    # Salva resultado_pos_gate.json de exemplo com um ativo vetado
+    with open(caminho_json, "w", encoding="utf-8") as f:
+        json.dump({
+            "status_final": "REPROVADO_TOTAL",
+            "motivo_veto": "Veto do Gate de Risco em Teste: R/R < 1.50",
+            "ticker": "PETR4",
+            "timestamp": "27/09/2026 15:00:00",
+            "relatorio_completo": {"ativo_alvo": "PETR4"}
+        }, f)
+
+    # Simula a ferramenta de cotacoes da cesta de liquidez
+    def mock_cotacoes_cesta():
+        return {
+            "status": "sucesso",
+            "dados": [
+                {
+                    "ticker": ticker,
+                    "preco_atual": 35.50,
+                    "variacao_dia_pct": 1.2,
+                    "volume": 2500000.0,
+                }
+                for ticker in mod_screener.CESTA_LIQUIDEZ_B3
+            ],
+        }
+
+    monkeypatch.setattr(mod_screener, "consultar_cotacoes_cesta_liquidez", mock_cotacoes_cesta)
+
     ranking = gerar_ranking_completo_ibrx100()
     assert len(ranking) == 10
     stats = obter_estatisticas_funil(ranking)

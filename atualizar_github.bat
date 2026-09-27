@@ -1,5 +1,6 @@
 @echo off
-setlocal
+chcp 65001 >nul
+setlocal enabledelayedexpansion
 title Atualizar Repositorio GitHub - Mesa de Operacoes B3
 
 echo ====================================================================
@@ -9,7 +10,60 @@ echo.
 
 cd /d "%~dp0"
 
-echo [1/4] Verificando status dos arquivos modificados...
+echo [Portão 1/3] Executando suite de testes pytest...
+python -m pytest --tb=short -q
+if errorlevel 1 (
+    echo.
+    echo ====================================================================
+    echo [ERRO - ABORTADO] A suite de testes falhou!
+    echo Corrija as falhas nos testes antes de tentar sincronizar o repositorio.
+    echo ====================================================================
+    pause
+    exit /b 1
+)
+echo [OK] Testes passaram com sucesso.
+echo.
+
+echo [Portão 2/3] Verificando vazamento de credenciais nos arquivos modificados...
+for /f "tokens=*" %%F in ('git diff --name-only HEAD') do (
+    if exist "%%F" (
+        findstr /i /r "AIza sk- token=" "%%F" >nul 2>&1
+        if !errorlevel! equ 0 (
+            echo.
+            echo ====================================================================
+            echo [ERRO - ABORTADO] Possivel vazamento de credenciais detectado no arquivo: %%F
+            echo Foram encontrados padroes suspeitos (AIza, sk-, token=).
+            echo Remova as credenciais antes de prosseguir.
+            echo ====================================================================
+            pause
+            exit /b 1
+        )
+    )
+)
+echo [OK] Nenhuma credencial exposta encontrada.
+echo.
+
+echo [Portão 3/3] Verificando arquivos proibidos no status do git...
+for /f "tokens=*" %%A in ('git status --porcelain') do (
+    set "LINE=%%A"
+    for %%P in (04_auditoria 05_correcao 03_entrega .zip .log entrega/) do (
+        echo !LINE! | findstr /i "%%P" >nul 2>&1
+        if !errorlevel! equ 0 (
+            echo.
+            echo ====================================================================
+            echo [ERRO - ABORTADO] Arquivo proibido detectado no git status: !LINE!
+            echo Padrao proibido correspondente: %%P
+            echo Adicione o arquivo ao .gitignore ou remova-o do repositorio antes de commitar.
+            echo ====================================================================
+            pause
+            exit /b 1
+        )
+    )
+)
+echo [OK] Nenhum arquivo proibido detectado.
+echo.
+
+echo Status dos arquivos modificados:
 git status -s
 echo.
 
@@ -21,20 +75,19 @@ if not defined MSG_COMMIT (
 )
 
 echo.
-echo [2/4] Adicionando arquivos modificados: git add .
+echo Adicionando arquivos modificados: git add .
 git add .
 
 echo.
-echo [3/4] Gravando commit: %MSG_COMMIT%
+echo Gravando commit: %MSG_COMMIT%
 git commit -m "%MSG_COMMIT%"
 
 echo.
-echo.
-echo [4/5] Enviando alteracoes para o GitHub: git push origin main
+echo Enviando alteracoes para o GitHub: git push origin main
 git push origin main
 
 echo.
-echo [5/5] Atualizando producao no Vercel: vercel --prod --yes
+echo Atualizando producao no Vercel: vercel --prod --yes
 call vercel --prod --yes
 
 if errorlevel 1 (

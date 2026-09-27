@@ -1,0 +1,131 @@
+======================================================================
+MESA DE OPERAÇÕES B3 - RETROFIT DE CONFORMIDADE V2 -> V3
+CORREÇÕES FINAIS (ONDA 3)
+Data: 27/09/2026
+======================================================================
+
+1. PASSO 0 — PREPARAÇÃO DO AMBIENTE
+- Removido da raiz o arquivo de instrução anterior: 05_correcao_v1.txt.
+- Criada a pasta entrega/v3/ para consolidação dos artefatos de entrega.
+- Executada a suíte de testes de linha de base: python -m pytest > entrega/v3/testes_antes.txt.
+  Resultado da linha de base: 44 testes coletados e 44 aprovados (100%).
+- Nenhuma operação de push, deploy ou execução de atualizar_github.bat foi realizada.
+
+======================================================================
+2. ITENS CORRIGIDOS, COMMITS E RESULTADOS
+======================================================================
+
+[V0-02c] CRÍTICO - Gate confia em dado de mercado escrito pelos agentes
+- Commit: fc50620
+- Mensagem: fix(risk): [V0-02c] consultar cotacao e cadeia diretamente no gate sem confiar nos agentes
+- Arquivos alterados:
+  * tools/risk_gate.py
+  * tests/conftest.py
+  * tests/test_v0_02c_gate_mercado.py
+  * tests/test_v0_02b_operacao_precos.py
+- Modificações e Regras Implementadas:
+  a) O gate chama diretamente consultar_dados_tecnicos_e_medias(ticker) para
+     obter a cotação real de referência. Se falhar ou não houver cotação positiva,
+     retorna veto com motivo "Sem cotacao de referencia".
+  b) Para Ação à Vista: o preço de entrada deve estar a no máximo 5% do preço
+     de referência da cotação. Caso contrário, veto por falta de lastro de mercado.
+  c) Para Trava de Alta com Call: o gate chama diretamente a ferramenta
+     consultar_cadeia_opcoes_b3(ticker). Aprova somente se:
+     * A origem retornada for estritamente "BRAPI_V2_OPTIONS_MEDIDO";
+     * Existirem na cadeia da BRAPI as duas séries com os strikes da proposta;
+     * Os prêmios de compra e venda diferirem no máximo 5% das cotações dessas séries na cadeia;
+     * Campo de preço utilizado na cadeia da BRAPI: 'close' (com fallback ordenado para 'regularMarketPrice', 'price' e 'lastPrice');
+     * O strike de compra estiver a no máximo 10% do preço de referência da ação.
+  d) O campo origem_premios digitado pelos agentes de IA passa a ser compulsoriamente
+     ignorado pelo gate para fins decisórios.
+  e) Nos testes, todas as ferramentas de rede e mercado são simuladas via fixtures/monkeypatch
+     em tests/conftest.py e testes dedicados, sem realizar chamadas externas à BRAPI.
+- Resultado: 6 novos testes unitários dedicados em tests/test_v0_02c_gate_mercado.py
+  cobrindo todos os cenários exigidos, todos 100% aprovados.
+
+[V2-01] ALTO - Veto por divergência de R/R bloqueia operações boas
+- Commit: bc96dfc
+- Mensagem: fix(risk): [V2-01] usar rr calculado sem vetar divergencia gravando alerta_rr e exibindo no pdf
+- Arquivos alterados:
+  * tools/risk_gate.py
+  * schemas/output_models.py
+  * tools/pdf_generator.py
+  * main.py
+  * server.py
+  * tests/test_v2_01_alerta_rr.py
+  * tests/test_risk_gate.py
+- Modificações e Regras Implementadas:
+  a) O gate utiliza sempre o R/R calculado deterministicamente em código.
+  b) A divergência entre o R/R declarado pelo agente e o R/R calculado deixa
+     de vetar a operação e passa a ser registrada no campo alerta_rr
+     ("R/R declarado pelo agente X; calculado Y; usado o calculado").
+  c) O campo alerta_rr é persistido no resultado_pos_gate.json (tanto na raiz
+     quanto dentro de relatorio_completo) e exibido como linha de alerta no PDF executivo.
+  d) O piso matemático inegociável de 1.50:1 permanece ativo sobre o R/R calculado.
+- Resultado: Testes unitários em tests/test_v2_01_alerta_rr.py comprovando aprovação
+  com R/R calculado 3.00 e declarado 2.00 (gerando alerta_rr) e veto quando o
+  calculado for 1.20 e declarado 2.00 (pelo piso).
+
+[V0-45b] MÉDIO - Varredura de segredos ignora arquivos novos
+- Commit: b892963
+- Mensagem: ci(deploy): [V0-45b] varrer arquivos novos contra segredos e exigir confirmacao PUBLICAR antes de git add
+- Arquivos alterados:
+  * atualizar_github.bat
+- Modificações:
+  a) O Portão 2/3 foi expandido para varrer também arquivos novos não rastreados
+     através de 'git ls-files --others --exclude-standard', além dos modificados em git diff.
+  b) Antes de executar 'git add .', o script exibe o resumo completo de 'git status -s'
+     e exige confirmação digitando explicitamente a palavra 'PUBLICAR'. Qualquer outra
+     entrada aborta o script sem alterar o repositório.
+  c) O script não foi executado nesta sessão, apenas alterado e mantido em UTF-8 CRLF.
+- Resultado: Portão de segurança e governança de deploy reforçado.
+
+[L-01] BAIXO - Atualização concisa do LEIAME
+- Arquivos alterados:
+  * LEIAME.txt
+- Modificações:
+  Registro exclusivo das alterações efetuadas neste ciclo (v2 -> v3), sem referências
+  a artefatos inexistentes ou dados obsoletos.
+
+======================================================================
+3. HISTÓRICO DE COMMITS DESTA RODADA (git log --oneline -10)
+======================================================================
+b892963 ci(deploy): [V0-45b] varrer arquivos novos contra segredos e exigir confirmacao PUBLICAR antes de git add
+bc96dfc fix(risk): [V2-01] usar rr calculado sem vetar divergencia gravando alerta_rr e exibindo no pdf
+fc50620 fix(risk): [V0-02c] consultar cotacao e cadeia diretamente no gate sem confiar nos agentes
+1288656 ci(deploy): [V0-45] adicionar portoes de validacao de testes segredos e arquivos proibidos no script
+38a7d9e docs(storefront): [V0-33] alinhar vitrine e readme a cesta de 10 ativos eliminando alegacoes infladas
+037d314 fix(chart): [V0-35b] descartar candles sem fechamento e suprimir SMA20 com menos de 20 candles
+9eb484b fix(ui): [V0-34] exibir contagens reais do funil sem fallbacks hardcoded
+7ae1f1d test(isolation): [V1-03] isolar testes em tmp_path impedindo gravacao na pasta output real
+b5d7769 fix(governance): [V1-02] texto fixo de contingencia em relatorio vetado e remocao de alegacao de certificacao
+3101f3d fix(risk): [V1-01] gate reprova por padrao na ausencia de decisao ou relatorio
+
+======================================================================
+4. SUÍTE DE TESTES UNITÁRIOS (ANTES vs DEPOIS)
+======================================================================
+- Testes ANTES (entrega/v3/testes_antes.txt):
+  Total: 44 testes
+  Resultado: 44 PASSED (100% de sucesso)
+
+- Testes DEPOIS (entrega/v3/testes_depois.txt):
+  Total: 52 testes
+  Resultado: 52 PASSED (100% de sucesso)
+
+======================================================================
+5. EXECUÇÃO REAL DA PIPELINE (main.py)
+======================================================================
+- Log gravado em: entrega/v3/execucao.log
+- Cópia do JSON persistida em: entrega/v3/resultado_pos_gate.json
+- Ativo avaliado: ITUB4
+- Deliberação do Gate de Risco:
+  * Status final: APROVADO (APROVADO_ALTERNATIVA)
+  * Estratégia autorizada: Swing Trade em Ações à Vista
+  * Preço de Entrada: R$ 41,00
+  * Preço Alvo: R$ 43,50
+  * Preço Stop Loss: R$ 39,80
+  * Razão Risco/Retorno auditada em código: 2.08 : 1 (supera o piso mínimo de 1.50:1)
+  * Lastro de mercado auditado em código: Aprovado
+  * Campo alerta_rr registrado no resultado pós-gate: Sim
+  * Relatório executivo PDF gerado: Sim
+======================================================================

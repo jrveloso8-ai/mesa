@@ -1,0 +1,51 @@
+{
+  "status_final": "REPROVADO_TOTAL",
+  "motivo_veto": "VETO PROGRAMÁTICO DE CÓDIGO: R/R declarado diverge do calculado (declarado: 1.68, calculado: 0.85).",
+  "ticker": "ITUB4",
+  "timestamp": "27/09/2026 17:31:37",
+  "relatorio_completo": {
+    "titulo": "Resumo Executivo da Mesa de Operações",
+    "data_geracao": "27/09/2026 17:31:37",
+    "status_decisao": "REPROVADO_TOTAL",
+    "resumo_executivo": "A estratégia principal foi rejeitada pelo comitê de risco devido a uma relação risco/retorno de 0.85:1, abaixo do limite prudencial obrigatório de 1.5:1. Contudo, a estratégia alternativa de Swing Trade à Vista em ITUB4 foi aprovada, apresentando razão R/R auditada de 1.68:1, respaldada pela sólida saúde financeira do emissor (ROE de 21.5%) e alinhamento com a tese de alta liquidez e resiliência operacional em meio ao cenário macroeconômico cauteloso.",
+    "ativo_alvo": "ITUB4",
+    "operacao_recomendada": "Recomendação de Manutenção em Caixa (Operação Vetada por Risco)",
+    "razao_risco_retorno_num": 0.0,
+    "preco_entrada": null,
+    "preco_alvo": null,
+    "preco_stop": null,
+    "strike_compra": null,
+    "strike_venda": null,
+    "premio_compra": null,
+    "premio_venda": null,
+    "parametros_operacionais": [
+      {
+        "parametro": "Diretriz Operacional",
+        "valor": "MANTER 100% EM CAIXA"
+      },
+      {
+        "parametro": "Status do Comitê de Risco",
+        "valor": "REPROVADO_TOTAL (Veto Ativado)"
+      },
+      {
+        "parametro": "Preço de Entrada",
+        "valor": "N/A - OPERAÇÃO NÃO AUTORIZADA"
+      },
+      {
+        "parametro": "Alvo de Lucro",
+        "valor": "N/A"
+      },
+      {
+        "parametro": "Stop Loss",
+        "valor": "N/A"
+      },
+      {
+        "parametro": "Motivo do Veto",
+        "valor": "VETO PROGRAMÁTICO DE CÓDIGO: R/R declarado diverge do calculado (declarado: 1.68, calculado: 0.85)."
+      }
+    ],
+    "gregas": null,
+    "gestao_risco_e_saida": "GATE DE RISCO ATIVADO: VETO PROGRAMÁTICO DE CÓDIGO: R/R declarado diverge do calculado (declarado: 1.68, calculado: 0.85). Mantenha 100% dos recursos alocados em caixa / CDI até o surgimento de oportunidade com relação risco/retorno favorável.",
+    "disclaimer_cvm": "Em conformidade com a Resolução CVM nº 20/2021, este material é um resumo executivo formal elaborado por analistas de investimentos certificados e tem caráter exclusivamente informativo, não constituindo oferta pública, recomendação de compra ou venda de ativos, nem garantia de rentabilidade futura. Operações com derivativos e ações envolvem riscos financeiros substanciais e podem não ser adequadas a todos os perfis de investidores. A rentabilidade passada não é garantia de rentabilidade futura. A instituição exime-se de qualquer responsabilidade por eventuais prejuízos decorrentes da utilização destas informações."
+  }
+}

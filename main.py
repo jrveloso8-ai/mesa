@@ -155,6 +155,32 @@ def run():
             relatorio.status_decisao = status_final
             relatorio.razao_risco_retorno_num = rr_efetivo
 
+        # Persistência oficial pós-gate de risco [V0-05]
+        import json
+        st_norm = "APROVADO" if aprovado_gate and "APROVAD" in str(status_final).upper() and "REPROVAD" not in str(status_final).upper() else "REPROVADO_TOTAL"
+        motivo_veto_str = motivo_gate if st_norm == "REPROVADO_TOTAL" else None
+        
+        if hasattr(relatorio, "model_dump"):
+            rel_dict = relatorio.model_dump()
+        elif hasattr(relatorio, "dict"):
+            rel_dict = relatorio.dict()
+        elif isinstance(relatorio, dict):
+            rel_dict = relatorio
+        else:
+            rel_dict = {"conteudo": str(relatorio)}
+
+        resultado_pos_gate = {
+            "status_final": st_norm,
+            "motivo_veto": motivo_veto_str,
+            "ticker": str(getattr(relatorio, "ativo_alvo", "PETR4")),
+            "timestamp": datetime.now().strftime("%d/%m/%Y %H:%M:%S"),
+            "relatorio_completo": rel_dict
+        }
+
+        os.makedirs("output", exist_ok=True)
+        with open("output/resultado_pos_gate.json", "w", encoding="utf-8") as f:
+            json.dump(resultado_pos_gate, f, ensure_ascii=False, indent=2)
+
         # Exibição no console
         exibir_dashboard_console(console, relatorio)
 

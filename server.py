@@ -103,27 +103,56 @@ def adicionar_log(mensagem: str):
 
 def carregar_ultimo_resultado_salvo():
     global estado_execucao
-    caminho_md = "output/relatorio_recomendacao.md"
-    if not os.path.exists(caminho_md):
-        return
+    caminhos = [
+        "output/resultado_pos_gate.json",
+        "/tmp/output/resultado_pos_gate.json"
+    ]
+    dados = None
+    for c in caminhos:
+        if os.path.exists(c):
+            try:
+                import json
+                with open(c, "r", encoding="utf-8") as f:
+                    dados = json.load(f)
+                break
+            except Exception:
+                continue
+
+    if not dados:
+        from tools.screener_ibrx100 import gerar_ranking_completo_ibrx100
+        estado_execucao["ranking"] = gerar_ranking_completo_ibrx100()
+        fallback = {
+            "status_final": "REPROVADO_TOTAL",
+            "motivo_veto": "Nenhuma execução registrada",
+            "ticker": "N/A"
+        }
+        estado_execucao["resultado"] = {
+            "status_final": "REPROVADO_TOTAL",
+            "motivo_veto": "Nenhuma execução registrada",
+            "ticker": "N/A",
+            "status_decisao": "REPROVADO_TOTAL",
+            "titulo": "Nenhuma execução registrada",
+            "ativo": "N/A",
+            "estrategia": "Nenhuma operação ativa",
+            "resumo_executivo": "Nenhuma execução auditada registrada no sistema.",
+            "parametros": [],
+            "gregas": {},
+            "gestao_risco": "Manter 100% em caixa / CDI.",
+            "disclaimer_cvm": "Resolução CVM nº 20/2021.",
+            "data": time.strftime("%d/%m/%Y %H:%M:%S")
+        }
+        return fallback
+
     try:
-        import json
-        with open(caminho_md, "r", encoding="utf-8") as f:
-            conteudo = f.read().strip()
-        if not conteudo:
-            return
+        status_final = dados.get("status_final", "REPROVADO_TOTAL")
+        motivo_veto = dados.get("motivo_veto")
+        ticker = dados.get("ticker", "N/A")
+        timestamp = dados.get("timestamp", time.strftime("%d/%m/%Y %H:%M:%S"))
+        data = dados.get("relatorio_completo", {})
+        if not isinstance(data, dict):
+            data = {}
 
-        if conteudo.startswith("{") and conteudo.endswith("}"):
-            data = json.loads(conteudo)
-        else:
-            import re
-            m = re.search(r"\{.*\}", conteudo, re.DOTALL)
-            if m:
-                data = json.loads(m.group(0))
-            else:
-                return
-
-        ativo = data.get("ativo_alvo", "PETR4")
+        ativo = ticker if ticker and ticker != "N/A" else data.get("ativo_alvo", "N/A")
         params_lista = data.get("parametros_operacionais", [])
         gregas_dict = data.get("gregas", {})
 
@@ -141,31 +170,31 @@ def carregar_ultimo_resultado_salvo():
         }
 
         try:
-            fn_tecnica = getattr(consultar_dados_tecnicos_e_medias, "func", consultar_dados_tecnicos_e_medias)
-            dados_tecnicos = fn_tecnica(ativo)
-            candles_raw = dados_tecnicos.get("candles_recentes", []) if isinstance(dados_tecnicos, dict) else []
-            import datetime as dt
-            candles_fmt = []
-            for c in candles_raw:
-                c_item = dict(c)
-                d_val = c.get("date")
-                if isinstance(d_val, (int, float)):
-                    ms = d_val if d_val > 1e11 else d_val
-                    c_item["date_str"] = dt.datetime.fromtimestamp(ms).strftime("%d/%m")
-                else:
-                    c_item["date_str"] = str(d_val)
-                candles_fmt.append(c_item)
+            if ativo and ativo != "N/A":
+                fn_tecnica = getattr(consultar_dados_tecnicos_e_medias, "func", consultar_dados_tecnicos_e_medias)
+                dados_tecnicos = fn_tecnica(ativo)
+                candles_raw = dados_tecnicos.get("candles_recentes", []) if isinstance(dados_tecnicos, dict) else []
+                import datetime as dt
+                candles_fmt = []
+                for c in candles_raw:
+                    c_item = dict(c)
+                    d_val = c.get("date")
+                    if isinstance(d_val, (int, float)):
+                        ms = d_val if d_val > 1e11 else d_val
+                        c_item["date_str"] = dt.datetime.fromtimestamp(ms).strftime("%d/%m")
+                    else:
+                        c_item["date_str"] = str(d_val)
+                    candles_fmt.append(c_item)
 
-            graficos["candles"] = candles_fmt
-            graficos["suporte"] = dados_tecnicos.get("suporte_recente") if isinstance(dados_tecnicos, dict) else None
-            graficos["resistencia"] = dados_tecnicos.get("resistencia_recente") if isinstance(dados_tecnicos, dict) else None
-            graficos["preco_atual"] = dados_tecnicos.get("preco_atual") if isinstance(dados_tecnicos, dict) else None
+                graficos["candles"] = candles_fmt
+                graficos["suporte"] = dados_tecnicos.get("suporte_recente") if isinstance(dados_tecnicos, dict) else None
+                graficos["resistencia"] = dados_tecnicos.get("resistencia_recente") if isinstance(dados_tecnicos, dict) else None
+                graficos["preco_atual"] = dados_tecnicos.get("preco_atual") if isinstance(dados_tecnicos, dict) else None
         except Exception as err:
             print(f"Aviso dados tecnicos: {err}")
 
         # Gráfico de payoff: só quando a operação APROVADA pelo gate for trava de alta, com os strikes e prêmios da proposta
-        status_salvo = data.get("status_decisao", "REPROVADO_TOTAL")
-        is_aprovado = "APROVAD" in str(status_salvo).upper()
+        is_aprovado = (status_final == "APROVADO")
         s_compra = data.get("strike_compra")
         s_venda = data.get("strike_venda")
         p_compra = data.get("premio_compra")
@@ -200,23 +229,28 @@ def carregar_ultimo_resultado_salvo():
         estado_execucao["ranking"] = gerar_ranking_completo_ibrx100()
 
         estado_execucao["resultado"] = {
-            "titulo": data.get("titulo", "Mesa de Operações B3"),
+            "status_final": status_final,
+            "motivo_veto": motivo_veto,
+            "ticker": ticker,
+            "titulo": data.get("titulo", f"Mesa de Operações B3 - {ticker}"),
             "ativo": ativo,
             "estrategia": data.get("operacao_recomendada", "Operação em Ações/Opções"),
             "resumo_executivo": data.get("resumo_executivo", ""),
             "parametros": params_lista,
             "gregas": gregas_dict,
-            "status_decisao": data.get("status_decisao", "APROVADO_PRINCIPAL"),
+            "status_decisao": status_final,
             "gestao_risco": data.get("gestao_risco_e_saida", ""),
             "disclaimer_cvm": data.get("disclaimer_cvm", "Resolução CVM nº 20/2021."),
-            "data": data.get("data_geracao", time.strftime("%d/%m/%Y")),
+            "data": timestamp,
         }
         estado_execucao["graficos"] = graficos
         estado_execucao["pdf_path"] = ultimo_pdf
         estado_execucao["status"] = "concluido"
-        adicionar_log(f"Última recomendação carregada: {ativo} ({data.get('operacao_recomendada', '')})")
+        adicionar_log(f"Última recomendação pós-gate carregada: {ativo} (Status: {status_final})")
+        return dados
     except Exception as e:
-        print(f"Aviso ao carregar relatório prévio: {e}")
+        print(f"Aviso ao carregar relatório pós-gate: {e}")
+        return dados
 
 
 # Carrega relatório prévio para o dashboard iniciar preenchido
@@ -431,6 +465,35 @@ def executar_esteira_background():
 
             params_lista = [{"parametro": k, "valor": v} for k, v in params_dict.items()]
 
+        # Persistência oficial pós-gate de risco [V0-05]
+        import json
+        st_norm = "APROVADO" if aprovado_gate and "APROVAD" in str(status_final).upper() and "REPROVAD" not in str(status_final).upper() else "REPROVADO_TOTAL"
+        motivo_veto_str = motivo_gate if st_norm == "REPROVADO_TOTAL" else None
+
+        if hasattr(relatorio, "model_dump"):
+            rel_dict = relatorio.model_dump()
+        elif hasattr(relatorio, "dict"):
+            rel_dict = relatorio.dict()
+        elif isinstance(relatorio, dict):
+            rel_dict = relatorio
+        else:
+            rel_dict = {"conteudo": str(relatorio)}
+
+        resultado_pos_gate = {
+            "status_final": st_norm,
+            "motivo_veto": motivo_veto_str,
+            "ticker": str(ativo),
+            "timestamp": time.strftime("%d/%m/%Y %H:%M:%S"),
+            "relatorio_completo": rel_dict
+        }
+
+        for p_pasta in ["output", "/tmp/output"]:
+            try:
+                os.makedirs(p_pasta, exist_ok=True)
+                with open(os.path.join(p_pasta, "resultado_pos_gate.json"), "w", encoding="utf-8") as f:
+                    json.dump(resultado_pos_gate, f, ensure_ascii=False, indent=2)
+            except Exception:
+                pass
 
         # Coleta de Dados Reais de Gráficos (Candlesticks da BRAPI e Payoff)
         adicionar_log(f"📈 Carregando dados técnicos reais e histórico de candles para {ativo}...")

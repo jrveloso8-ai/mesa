@@ -1,4 +1,26 @@
 ======================================================================
+STATUS DE LIBERACAO - 27/09/2026
+======================================================================
+Auditoria v3.2: CONDICIONAL -> liberado para publicacao.
+Criticos: todos fechados (v0 a v3.2). Suite: 56 testes passando.
+
+ACEITE DE PENDENCIAS (ONDA 2) - registrado pelo responsavel.
+Digitar PUBLICAR no atualizar_github.bat confirma este aceite.
+Itens conhecidos, NAO corrigidos nesta versao:
+  - Selic (0.1075) e volatilidade (0.28) fixas no codigo de opcoes
+  - P/L (forwardPE) rotulado como MEDIDO sem ser realizado
+  - Modo demonstracao silencioso (sem aviso explicito na tela)
+  - Excecoes engolidas em ferramentas; saneamento de noticias
+  - Sem uv.lock; respect_context_window nao configurado
+  - crew.py com patch do CrewAI; sem Flow nem guardrails
+  - Busca de opcao por strike nao distingue CALL/PUT nem vencimento
+  - Varredura de segredos nao pega NOME_TOKEN=valor nem "token": "valor"
+    (hoje .env esta no .gitignore e nao ha chave no codigo)
+Correcao prevista: Onda 2a (dados e seguranca) e Onda 2b (arquitetura).
+Enquanto isso: uso como ferramenta de apoio; nao e recomendacao de
+investimento.
+
+======================================================================
 MESA DE OPERAÇÕES B3 - RETROFIT DE CONFORMIDADE V3.1 -> V3.2
 AJUSTES DE LIBERAÇÃO (VARREDURA DE SEGREDOS DETERMINÍSTICA)
 Data: 27/09/2026

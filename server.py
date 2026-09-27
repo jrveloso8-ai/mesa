@@ -340,6 +340,11 @@ def executar_esteira_background():
             else:
                 relatorio = resultado_crew
 
+            # Sobrescreve data_geracao em código com a data/hora exata da execução
+            data_execucao = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
+            if hasattr(relatorio, "data_geracao"):
+                relatorio.data_geracao = data_execucao
+
         adicionar_log("🔍 Submetendo resultado ao Gate de Risco Programático de Código...")
 
         # Coleta do ativo e parâmetros técnicos
@@ -347,39 +352,21 @@ def executar_esteira_background():
         titulo = getattr(relatorio, "titulo", f"Recomendação Mesa de Operações - {ativo}")
         estrategia = getattr(relatorio, "operacao_recomendada", "Operação Analisada")
         resumo = getattr(relatorio, "resumo_executivo", str(resultado_crew))
-        params_raw = getattr(relatorio, "parametros_operacionais", [])
-
-        # Identifica a relação Risco/Retorno numérica declarada nos parâmetros
-        rr_declarado = 0.0
-        entrada_num, alvo_num, stop_num = 0.0, 0.0, 0.0
-
-        params_dict = {}
-        params_lista = []
-        if isinstance(params_raw, list):
-            for item in params_raw:
-                p_nome = getattr(item, "parametro", str(item))
-                p_val = getattr(item, "valor", "")
-                params_dict[str(p_nome)] = str(p_val)
-                params_lista.append({"parametro": str(p_nome), "valor": str(p_val)})
-                if "r/r" in p_nome.lower() or "risco/retorno" in p_nome.lower():
-                    try:
-                        part = p_val.split(":")[0].replace("R$", "").replace(",", ".").strip()
-                        rr_declarado = float(part)
-                    except Exception:
-                        pass
-        elif isinstance(params_raw, dict):
-            params_dict = params_raw
-            for k, v in params_raw.items():
-                params_lista.append({"parametro": str(k), "valor": str(v)})
 
         # Aplicação Estrita do Gate de Risco em Código (Audit Items A & B)
         decisao_risco_autentica = extrair_decisao_risco_autentica(resultado_crew, relatorio)
         rr_efetivo = extrair_rr_efetivo(relatorio, decisao_risco_autentica)
+        rr_declarado = getattr(decisao_risco_autentica, "razao_risco_retorno_auditada", 0.0) or getattr(relatorio, "razao_risco_retorno_num", 0.0)
 
         aprovado_gate, status_gate, motivo_gate = auditar_gate_de_risco_programatico(
-            decisao_risco_autentica,
-            rr_efetivo
+            decisao_risco=decisao_risco_autentica,
+            razao_risco_retorno=rr_efetivo,
+            relatorio=relatorio,
+            rr_declarado=rr_declarado
         )
+
+        params_dict = {}
+        params_lista = []
 
         if not aprovado_gate:
             adicionar_log(f"🛡️ GATE DE RISCO ATIVADO: {motivo_gate}")
@@ -393,6 +380,38 @@ def executar_esteira_background():
             relatorio.status_decisao = status_final
             relatorio.razao_risco_retorno_num = rr_efetivo
             adicionar_log(f"✅ Operação validada e aprovada pelo Gate de Risco ({status_final} | R/R: {rr_efetivo:.2f}:1)!")
+
+            # Montagem priorizando campos float tipados
+            if getattr(relatorio, "preco_entrada", None) is not None:
+                params_dict["Preço de Entrada"] = f"R$ {relatorio.preco_entrada:.2f}"
+            if getattr(relatorio, "preco_alvo", None) is not None:
+                params_dict["Alvo de Lucro"] = f"R$ {relatorio.preco_alvo:.2f}"
+            if getattr(relatorio, "preco_stop", None) is not None:
+                params_dict["Stop Loss"] = f"R$ {relatorio.preco_stop:.2f}"
+            if getattr(relatorio, "strike_compra", None) is not None:
+                params_dict["Strike Compra"] = f"R$ {relatorio.strike_compra:.2f}"
+            if getattr(relatorio, "strike_venda", None) is not None:
+                params_dict["Strike Venda"] = f"R$ {relatorio.strike_venda:.2f}"
+            if getattr(relatorio, "premio_compra", None) is not None:
+                params_dict["Prêmio Compra"] = f"R$ {relatorio.premio_compra:.2f}"
+            if getattr(relatorio, "premio_venda", None) is not None:
+                params_dict["Prêmio Venda"] = f"R$ {relatorio.premio_venda:.2f}"
+            if getattr(relatorio, "razao_risco_retorno_num", None) is not None and relatorio.razao_risco_retorno_num > 0:
+                params_dict["Relação Risco/Retorno"] = f"{relatorio.razao_risco_retorno_num:.2f} : 1"
+
+            params_raw = getattr(relatorio, "parametros_operacionais", [])
+            if isinstance(params_raw, list):
+                for item in params_raw:
+                    p_nome = getattr(item, "parametro", str(item))
+                    p_val = getattr(item, "valor", "")
+                    if str(p_nome) not in params_dict:
+                        params_dict[str(p_nome)] = str(p_val)
+            elif isinstance(params_raw, dict):
+                for k, v in params_raw.items():
+                    if str(k) not in params_dict:
+                        params_dict[str(k)] = str(v)
+
+            params_lista = [{"parametro": k, "valor": v} for k, v in params_dict.items()]
 
 
         # Coleta de Dados Reais de Gráficos (Candlesticks da BRAPI e Payoff)

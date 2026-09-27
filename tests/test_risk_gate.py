@@ -283,3 +283,56 @@ def test_v0_01_gate_trava_de_alta_payoff():
     assert status == "APROVADO_PRINCIPAL"
 
 
+def test_v0_02_relatorio_sem_campos_float_resulta_em_veto():
+    """
+    [V0-02] Relatório sem campos numéricos tipados float resulta em veto pelo Gate de Risco.
+    """
+    relatorio = RelatorioExecutivoFinal(
+        titulo="Recomendação de Compra",
+        ativo_alvo="VALE3",
+        operacao_recomendada="Compra de Ação",
+        status_decisao="APROVADO_PRINCIPAL",
+        # Campos float ausentes (None)
+        preco_entrada=None,
+        preco_alvo=None,
+        preco_stop=None
+    )
+    aprovado, status, motivo = auditar_gate_de_risco_programatico(relatorio=relatorio)
+    assert aprovado is False
+    assert status == "REPROVADO_TOTAL"
+    assert "sem parâmetros numéricos" in motivo.lower()
+
+
+def test_v0_02_relatorio_com_campos_float_e_data_execucao():
+    """
+    [V0-02] Relatório com campos numéricos tipados float e data de execução.
+    """
+    from datetime import datetime
+    data_atual = datetime.now().strftime("%d/%m/%Y")
+    relatorio = RelatorioExecutivoFinal(
+        titulo="Recomendação de Compra",
+        ativo_alvo="VALE3",
+        operacao_recomendada="Compra de Ação",
+        status_decisao="APROVADO_PRINCIPAL",
+        preco_entrada=40.0,
+        preco_alvo=50.0,
+        preco_stop=35.0,
+        razao_risco_retorno_num=2.0,
+        data_geracao=data_atual
+    )
+    # Entrada 40, Alvo 50 (+10), Stop 35 (-5) -> R/R = 2.0
+    decisao = DecisaoRiscoModel(
+        status="APROVADO_PRINCIPAL",
+        aprovado_para_divulgacao=True,
+        razao_risco_retorno_auditada=2.0
+    )
+    aprovado, status, motivo = auditar_gate_de_risco_programatico(decisao_risco=decisao, relatorio=relatorio)
+    assert aprovado is True
+    assert status == "APROVADO_PRINCIPAL"
+    assert relatorio.data_geracao == data_atual
+    assert relatorio.preco_entrada == 40.0
+    assert relatorio.preco_alvo == 50.0
+    assert relatorio.preco_stop == 35.0
+
+
+

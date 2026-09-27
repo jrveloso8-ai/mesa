@@ -120,6 +120,11 @@ def run():
         else:
             relatorio = resultado
 
+        # Sobrescreve data_geracao em código com a data/hora exata da execução
+        data_execucao = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
+        if hasattr(relatorio, "data_geracao"):
+            relatorio.data_geracao = data_execucao
+
         # Auditoria com Gate de Risco Programático em Código (Audit Items A & B)
         from tools.risk_gate import (
             auditar_gate_de_risco_programatico,
@@ -131,13 +136,16 @@ def run():
         # 1. Extração autenticada da decisão direta do Coordenador de Risco (Item B)
         decisao_risco_autentica = extrair_decisao_risco_autentica(resultado, relatorio)
 
-        # 2. Extração consolidada e anti-omissão da Razão R/R (Item A)
+        # 2. Extração consolidada e anti-omissão da Razão R/R calculada em código (Item A)
         rr_efetivo = extrair_rr_efetivo(relatorio, decisao_risco_autentica)
+        rr_declarado = getattr(decisao_risco_autentica, "razao_risco_retorno_auditada", 0.0) or getattr(relatorio, "razao_risco_retorno_num", 0.0)
 
         # 3. Auditoria programática em código inegociável
         aprovado_gate, status_final, motivo_gate = auditar_gate_de_risco_programatico(
-            decisao_risco_autentica,
-            rr_efetivo
+            decisao_risco=decisao_risco_autentica,
+            razao_risco_retorno=rr_efetivo,
+            relatorio=relatorio,
+            rr_declarado=rr_declarado
         )
 
         if not aprovado_gate:
@@ -161,16 +169,36 @@ def run():
         gestao_risco = getattr(relatorio, "gestao_risco_e_saida", "Conforme limites de risco da mesa.")
 
 
-        # Construção dos parâmetros operacionais para o PDF oficial
-        params_raw = getattr(relatorio, "parametros_operacionais", [])
+        # Construção dos parâmetros operacionais para o PDF oficial com prioridade aos campos float tipados
         params_dict = {}
+        if getattr(relatorio, "preco_entrada", None) is not None:
+            params_dict["Preço de Entrada"] = f"R$ {relatorio.preco_entrada:.2f}"
+        if getattr(relatorio, "preco_alvo", None) is not None:
+            params_dict["Alvo de Lucro"] = f"R$ {relatorio.preco_alvo:.2f}"
+        if getattr(relatorio, "preco_stop", None) is not None:
+            params_dict["Stop Loss"] = f"R$ {relatorio.preco_stop:.2f}"
+        if getattr(relatorio, "strike_compra", None) is not None:
+            params_dict["Strike Compra"] = f"R$ {relatorio.strike_compra:.2f}"
+        if getattr(relatorio, "strike_venda", None) is not None:
+            params_dict["Strike Venda"] = f"R$ {relatorio.strike_venda:.2f}"
+        if getattr(relatorio, "premio_compra", None) is not None:
+            params_dict["Prêmio Compra"] = f"R$ {relatorio.premio_compra:.2f}"
+        if getattr(relatorio, "premio_venda", None) is not None:
+            params_dict["Prêmio Venda"] = f"R$ {relatorio.premio_venda:.2f}"
+        if getattr(relatorio, "razao_risco_retorno_num", None) is not None and relatorio.razao_risco_retorno_num > 0:
+            params_dict["Relação Risco/Retorno"] = f"{relatorio.razao_risco_retorno_num:.2f} : 1"
+
+        params_raw = getattr(relatorio, "parametros_operacionais", [])
         if isinstance(params_raw, list):
             for item in params_raw:
                 p_nome = getattr(item, "parametro", str(item))
                 p_val = getattr(item, "valor", "")
-                params_dict[str(p_nome)] = str(p_val)
+                if str(p_nome) not in params_dict:
+                    params_dict[str(p_nome)] = str(p_val)
         elif isinstance(params_raw, dict):
-            params_dict = {str(k): str(v) for k, v in params_raw.items()}
+            for k, v in params_raw.items():
+                if str(k) not in params_dict:
+                    params_dict[str(k)] = str(v)
 
         gregas_model = getattr(relatorio, "gregas", None)
         gregas_dict = {}

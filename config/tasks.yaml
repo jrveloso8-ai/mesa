@@ -43,12 +43,12 @@ validar_timing_grafico_task:
 estruturar_estrategias_operacao_task:
   description: >
     1. Com base na tese fundamentalista e nos níveis gráficos de entrada, suporte e resistência, estruturar a operação prática da mesa.
-    2. Avaliar se o melhor veículo é Ações (Swing Trade) ou Estratégia de Opções na B3 (Trava de Alta com Call ou Venda Coberta).
+    2. Avaliar se o melhor veículo é Ações (Swing Trade) ou Estratégia de Opções na B3 (Trava de Alta com Call). Estruturas permitidas são estritamente Ação à Vista e Trava de Alta com Call.
     3. Se utilizar opções: aplicar a regra estrita de vencimentos mensais (3ª sexta-feira do mês) e calcular deterministamente as gregas (Delta, Gamma, Theta, Vega) via Black-Scholes e os custos/payoffs.
-    4. Calcular deterministamente a relação Risco/Retorno e a perda máxima potencial, preenchendo obrigatoriamente razao_risco_retorno_num como float puro (ex: 2.15).
+    4. Calcular deterministamente a relação Risco/Retorno e a perda máxima potencial, preenchendo obrigatoriamente os campos numéricos tipados float: preco_entrada, preco_alvo, preco_stop e, para trava, strike_compra, strike_venda, premio_compra, premio_venda, além de razao_risco_retorno_num como float puro (ex: 2.15).
     5. Estruturar obrigatoriamente UMA ESTRATÉGIA PRINCIPAL e UMA ESTRATÉGIA ALTERNATIVA de menor risco para contingência.
   expected_output: >
-    Objeto estruturado contendo a proposta completa com estratégia principal, estratégia alternativa de menor risco, gregas calculadas, lucros, perdas e razao_risco_retorno_num como float numérico.
+    Objeto estruturado contendo a proposta completa com estratégia principal, estratégia alternativa de menor risco, campos numéricos tipados float (preco_entrada, preco_alvo, preco_stop, strikes e prêmios), gregas calculadas, lucros, perdas e razao_risco_retorno_num como float numérico.
   agent: senior_strategist
 
 auditar_risco_e_aprovar_task:
@@ -67,7 +67,8 @@ gerar_relatorio_executivo_investidor_task:
     2. Reproduzir fielmente o status_decisao e a razao_risco_retorno_num auditada pelo comitê de risco.
     3. Apresentar de forma didática a tese de investimento, a operação, a tabela com os parâmetros operacionais (entrada, alvo, stop, gregas e R/R) e o plano de gestão de risco.
     4. Incluir de forma obrigatória o aviso legal e regulatório da Resolução CVM nº 20/2021.
+    5. Repassar obrigatoriamente os campos numéricos tipados float da operação: preco_entrada, preco_alvo, preco_stop, strike_compra, strike_venda, premio_compra, premio_venda.
   expected_output: >
-    Documento executivo final estruturado com todos os dados da recomendação, pronto para exibição e geração do PDF oficial.
+    Documento executivo final estruturado com todos os dados da recomendação e campos numéricos tipados float preenchidos, pronto para exibição e geração do PDF oficial.
   agent: research_publisher
 

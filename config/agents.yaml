@@ -42,7 +42,7 @@ senior_strategist:
   role: >
     Estrategista Sênior de Ações e Derivativos (Opções)
   goal: >
-    Estruturar operações financeiras práticas (Ações ou Opções: Travas de Alta, Venda Coberta) focando na B3,
+    Estruturar operações financeiras práticas (Ações à vista ou Opções: Trava de Alta com Call) focando na B3,
     calculando deterministamente gregas (Black-Scholes), payoffs, pontos de breakeven e fornecendo sempre
     uma estratégia principal e uma alternativa de menor risco.
   backstory: >

@@ -486,11 +486,14 @@ def executar_esteira_background():
         else:
             rel_dict = {"conteudo": str(relatorio)}
 
+        alerta_rr = getattr(relatorio, "alerta_rr", None)
+
         resultado_pos_gate = {
             "status_final": st_norm,
             "motivo_veto": motivo_veto_str,
             "ticker": str(ativo),
             "timestamp": time.strftime("%d/%m/%Y %H:%M:%S"),
+            "alerta_rr": alerta_rr,
             "relatorio_completo": rel_dict
         }
 
@@ -596,7 +599,8 @@ def executar_esteira_background():
             gregas=gregas_dict,
             gestao_risco=getattr(relatorio, "gestao_risco_e_saida", "Gestão de risco da mesa."),
             status=status_final,
-            caminho_saida=pdf_path
+            caminho_saida=pdf_path,
+            alerta_rr=alerta_rr
         )
 
         estado_execucao["resultado"] = {
@@ -607,6 +611,7 @@ def executar_esteira_background():
             "parametros": params_lista,
             "gregas": gregas_dict,
             "status_decisao": status_final,
+            "alerta_rr": alerta_rr,
             "gestao_risco": getattr(relatorio, "gestao_risco_e_saida", "Gestão de risco da mesa."),
             "disclaimer_cvm": getattr(relatorio, "disclaimer_cvm", "Resolução CVM nº 20/2021."),
             "data": time.strftime("%d/%m/%Y %H:%M"),

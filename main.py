@@ -179,11 +179,14 @@ def run():
         else:
             rel_dict = {"conteudo": str(relatorio)}
 
+        alerta_rr = getattr(relatorio, "alerta_rr", None)
+
         resultado_pos_gate = {
             "status_final": st_norm,
             "motivo_veto": motivo_veto_str,
             "ticker": str(getattr(relatorio, "ativo_alvo", "PETR4")),
             "timestamp": datetime.now().strftime("%d/%m/%Y %H:%M:%S"),
+            "alerta_rr": alerta_rr,
             "relatorio_completo": rel_dict
         }
 
@@ -255,7 +258,8 @@ def run():
             gregas=gregas_dict,
             gestao_risco=gestao_risco,
             status=status_final,
-            caminho_saida=pdf_path
+            caminho_saida=pdf_path,
+            alerta_rr=alerta_rr
         )
 
         console.print(f"\n[bold green]✅ Relatório PDF executivo gerado com sucesso![/bold green]")

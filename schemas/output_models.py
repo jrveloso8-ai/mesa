@@ -121,5 +121,6 @@ class RelatorioExecutivoFinal(BaseModel):
     origem_premios: Optional[str] = Field(default=None, description="Origem dos prêmios das opções")
     parametros_operacionais: List[ItemParametro] = Field(default_factory=list, description="Tabela de parâmetros: Entrada, Alvo, Stop, Strikes, R/R")
     gregas: Optional[GregasOpcoesModel] = Field(default=None, description="Gregas consolidadas da estrutura calculadas por Black-Scholes")
+    alerta_rr: Optional[str] = Field(default=None, description="Alerta de divergência entre R/R declarado e calculado [V2-01]")
     gestao_risco_e_saida: str = Field(default="", description="Instruções de risco e plano de contingência")
     disclaimer_cvm: str = Field(default="Em conformidade com a Resolução CVM nº 20/2021.", description="Disclaimer legal")

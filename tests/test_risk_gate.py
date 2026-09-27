@@ -209,10 +209,10 @@ def test_v0_01_gate_rejeita_precos_com_rr_fraco_mesmo_com_declarado_alto():
     assert status == "REPROVADO_TOTAL"
 
 
-def test_v0_01_gate_veta_quando_rr_declarado_diverge_do_calculado():
+def test_v0_01_gate_registra_alerta_quando_rr_declarado_diverge_do_calculado():
     """
-    [V0-01] Teste com preços 43.55/50/41.50 (R/R calculado ~3.15) e declarado 1.55:
-    Divergência de mais de 0.05 faz o gate vetar com motivo 'R/R declarado diverge do calculado'.
+    [V2-01] Teste com preços 43.55/50/41.50 (R/R calculado ~3.15) e declarado 1.55:
+    Divergência não veta a operação (aprova pois 3.15 >= 1.50) e registra alerta_rr.
     """
     decisao = DecisaoRiscoModel(
         status="APROVADO_PRINCIPAL",
@@ -220,16 +220,18 @@ def test_v0_01_gate_veta_quando_rr_declarado_diverge_do_calculado():
         razao_risco_retorno_auditada=1.55,
         aprovado_para_divulgacao=True
     )
-    aprovado, status, motivo = auditar_gate_de_risco_programatico(
+    res = auditar_gate_de_risco_programatico(
         decisao_risco=decisao,
         preco_entrada=43.55,
         preco_alvo=50.0,
         preco_stop=41.50,
         rr_declarado=1.55
     )
-    assert aprovado is False
-    assert status == "REPROVADO_TOTAL"
-    assert "R/R declarado diverge do calculado" in motivo
+    aprovado, status, motivo = res
+    assert aprovado is True
+    assert status == "APROVADO_PRINCIPAL"
+    assert res.alerta_rr is not None
+    assert "R/R declarado pelo agente 1.55; calculado 3.15; usado o calculado" in res.alerta_rr
 
 
 def test_v0_01_gate_aprova_quando_declarado_e_calculado_sao_consistentes():

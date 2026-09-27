@@ -367,6 +367,17 @@ def _buscar_serie_por_strike(series: list, strike_alvo: float) -> Optional[Tuple
     return None
 
 
+class ResultadoGate(tuple):
+    """Tupla compatível com (aprovado, status_final, motivo) que expõe alerta_rr [V2-01]."""
+    def __new__(cls, aprovado: bool, status_final: str, motivo: str, alerta_rr: Optional[str] = None):
+        instance = super().__new__(cls, (aprovado, status_final, motivo))
+        instance.aprovado = aprovado
+        instance.status_final = status_final
+        instance.motivo = motivo
+        instance.alerta_rr = alerta_rr
+        return instance
+
+
 def auditar_gate_de_risco_programatico(
     decisao_risco: Optional[DecisaoRiscoModel] = None,
     razao_risco_retorno: float = 0.0,
@@ -665,27 +676,33 @@ def auditar_gate_de_risco_programatico(
                 f"Preco de entrada sem lastro de mercado: entrada em R$ {e:.2f} diverge mais de 5% da cotacao de referencia R$ {preco_ref:.2f}"
             )
 
-    # Comparação estrita entre R/R declarado pelos agentes e o calculado em código:
+    # Registro de divergência de R/R sem veto, priorizando o R/R calculado deterministicamente [V2-01]
+    alerta_rr = None
     if rr_declarado is not None and rr_declarado > 0:
         divergencia = abs(rr_declarado - rr_calculado)
         divergencia_arredondado = abs(rr_declarado - round(rr_calculado, 2))
         if divergencia > 0.05 and divergencia_arredondado > 0.05:
-            return (
-                False,
-                "REPROVADO_TOTAL",
-                f"VETO PROGRAMÁTICO DE CÓDIGO: R/R declarado diverge do calculado (declarado: {rr_declarado:.2f}, calculado: {rr_calculado:.2f})."
-            )
+            alerta_rr = f"R/R declarado pelo agente {rr_declarado:.2f}; calculado {rr_calculado:.2f}; usado o calculado"
+
+    if relatorio is not None:
+        relatorio.alerta_rr = alerta_rr
 
     # Piso matemático inegociável de assimetria (mínimo obrigatório 1.5:1)
     if rr_calculado < 1.5:
-        return (
+        return ResultadoGate(
             False,
             "REPROVADO_TOTAL",
-            f"VETO PROGRAMÁTICO DE CÓDIGO: Relação R/R ({rr_calculado:.2f}:1) é estritamente inferior ao piso obrigatório de 1.50:1 ou foi omitida da recomendação."
+            f"VETO PROGRAMÁTICO DE CÓDIGO: Relação R/R ({rr_calculado:.2f}:1) é estritamente inferior ao piso obrigatório de 1.50:1 ou foi omitida da recomendação.",
+            alerta_rr=alerta_rr
         )
 
     status_aprovado = decisao_risco.status if decisao_risco.status in ["APROVADO_PRINCIPAL", "APROVADO_ALTERNATIVA"] else "APROVADO_PRINCIPAL"
-    return True, status_aprovado, f"Aprovado pelo Comitê de Risco e Validado pelo Gate ({status_aprovado} | R/R: {rr_calculado:.2f}:1)."
+    return ResultadoGate(
+        True,
+        status_aprovado,
+        f"Aprovado pelo Comitê de Risco e Validado pelo Gate ({status_aprovado} | R/R: {rr_calculado:.2f}:1).",
+        alerta_rr=alerta_rr
+    )
 
 
 DISCLAIMER_CVM_OFICIAL = (

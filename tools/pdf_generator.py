@@ -59,7 +59,8 @@ def gerar_pdf_relatorio(
     gregas: dict = None,
     gestao_risco: str = "",
     status: str = "APROVADO",
-    caminho_saida: str = "output/relatorio_operacao.pdf"
+    caminho_saida: str = "output/relatorio_operacao.pdf",
+    alerta_rr: str = None
 ) -> str:
     """
     Gera o arquivo PDF executivo formatado da operação recomendada.
@@ -163,6 +164,13 @@ def gerar_pdf_relatorio(
             pdf.cell(95, 5.5, sanitizar_texto(str(valor)), 1, 1, "L")
     else:
         pdf.cell(190, 5.5, "Parâmetros não informados.", 1, 1, "C")
+
+    if alerta_rr:
+        pdf.ln(1.5)
+        pdf.set_font("Helvetica", "B", 8)
+        pdf.set_text_color(180, 50, 0)
+        pdf.cell(0, 5, sanitizar_texto(f"Alerta de Risco/Retorno: {alerta_rr}"), 0, 1, "L")
+        pdf.set_text_color(40, 40, 40)
     pdf.ln(3)
 
     # Seção 3: Gregas da Opção (Modelo Black-Scholes)

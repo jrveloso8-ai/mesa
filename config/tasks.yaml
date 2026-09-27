@@ -26,7 +26,7 @@ selecionar_ativo_fundamentalista_task:
 
 validar_timing_grafico_task:
   description: >
-    1. Para o ativo eleito pelo Analista Fundamentalista, consultar o histórico de preços, médias móveis (SMA20 e SMA50) e RSI-14 via BRAPI.
+    1. Para o ativo eleito pelo Analista Fundamentalista, consultar o histórico de preços, médias móveis (SMA20 e SMA50) e RSI-14 via BRAPI, registrando o preco_atual medido.
     2. Identificar a tendência principal pela Teoria de Dow (topos e fundos ascendentes/descendentes) e mapear suportes e resistências recentes (swing highs/lows).
     3. Aplicar rigorosamente o Checklist Objetivo CNPI-T de 5 itens:
        (a) Tendência definida de alta ou consolidação em acumulação (nunca em tendência de baixa confirmada).
@@ -37,38 +37,37 @@ validar_timing_grafico_task:
     4. Determinar o veredito técnico: se todos os 5 critérios passarem -> 'bom'; se qualquer um falhar -> 'aguardar'; se tendência de baixa -> 'baixa'.
     5. Definir o preço de entrada ideal, o Stop Loss Técnico estrito (abaixo do suporte de referência ou 1x ATR) e o nível de invalidação da leitura.
   expected_output: >
-    Objeto estruturado com o ticker, tendência técnica, suporte, resistência, RSI-14, sinal_timing (bom, aguardar ou baixa), preço de entrada sugerido e stop loss técnico.
+    Objeto estruturado com o ticker, preco_atual medido na BRAPI, tendência técnica, suporte, resistência, RSI-14, sinal_timing (bom, aguardar ou baixa), preço de entrada sugerido e stop loss técnico.
   agent: technical_analyst
 
 estruturar_estrategias_operacao_task:
   description: >
     1. Com base na tese fundamentalista e nos níveis gráficos de entrada, suporte e resistência, estruturar a operação prática da mesa.
     2. Avaliar se o melhor veículo é Ações (Swing Trade) ou Estratégia de Opções na B3 (Trava de Alta com Call). Estruturas permitidas são estritamente Ação à Vista e Trava de Alta com Call.
-    3. Se utilizar opções: aplicar a regra estrita de vencimentos mensais (3ª sexta-feira do mês) e calcular deterministamente as gregas (Delta, Gamma, Theta, Vega) via Black-Scholes e os custos/payoffs.
-    4. Calcular deterministamente a relação Risco/Retorno e a perda máxima potencial, preenchendo obrigatoriamente os campos numéricos tipados float: preco_entrada, preco_alvo, preco_stop e, para trava, strike_compra, strike_venda, premio_compra, premio_venda, além de razao_risco_retorno_num como float puro (ex: 2.15).
+    3. Se utilizar opções: aplicar a regra estrita de vencimentos mensais (3ª sexta-feira do mês), registrar origem_premios (ex: 'BRAPI_V2_OPTIONS_MEDIDO') obtido da ferramenta consultar_cadeia_opcoes_b3 e calcular deterministamente as gregas (Delta, Gamma, Theta, Vega) via Black-Scholes e os custos/payoffs.
+    4. Calcular deterministamente a relação Risco/Retorno e a perda máxima potencial, preenchendo obrigatoriamente os campos numéricos tipados float: preco_entrada, preco_alvo, preco_stop e, para trava, strike_compra, strike_venda, premio_compra, premio_venda, origem_premios, além de razao_risco_retorno_num como float puro (ex: 2.15).
     5. Estruturar obrigatoriamente UMA ESTRATÉGIA PRINCIPAL e UMA ESTRATÉGIA ALTERNATIVA de menor risco para contingência.
   expected_output: >
-    Objeto estruturado contendo a proposta completa com estratégia principal, estratégia alternativa de menor risco, campos numéricos tipados float (preco_entrada, preco_alvo, preco_stop, strikes e prêmios), gregas calculadas, lucros, perdas e razao_risco_retorno_num como float numérico.
+    Objeto estruturado contendo a proposta completa com estratégia principal, estratégia alternativa de menor risco, campos numéricos tipados float (preco_entrada, preco_alvo, preco_stop, strikes e prêmios, origem_premios), gregas calculadas, lucros, perdas e razao_risco_retorno_num como float numérico.
   agent: senior_strategist
 
 auditar_risco_e_aprovar_task:
   description: >
     1. Auditar tecnicamente a proposta do estrategista: verificar relação risco/retorno (mínimo obrigatório 1.5:1), clareza do stop loss e se a regra de vencimentos mensais foi respeitada.
-    2. Se a estratégia principal estiver adequada e com R/R >= 1.5, emitir 'APROVADO_PRINCIPAL' e preencher razao_risco_retorno_auditada (float).
-    3. Se a estratégia principal tiver risco elevado mas a alternativa estiver prudente com R/R >= 1.5, emitir 'APROVADO_ALTERNATIVA'.
-    4. Caso ambas apresentem riscos inaceitáveis ou R/R < 1.5, emitir 'REPROVADO_TOTAL' e aprovado_para_divulgacao=False com o parecer de recomendação de aguardar no caixa.
+    2. Se a estratégia principal estiver adequada e com R/R >= 1.5, emitir 'APROVADO_PRINCIPAL', definir estrategia_aprovada='PRINCIPAL' e preencher razao_risco_retorno_auditada (float).
+    3. Se a estratégia principal tiver risco elevado mas a alternativa estiver prudente com R/R >= 1.5, emitir 'APROVADO_ALTERNATIVA', definir estrategia_aprovada='ALTERNATIVA' e preencher razao_risco_retorno_auditada (float).
+    4. Caso ambas apresentem riscos inaceitáveis ou R/R < 1.5, emitir 'REPROVADO_TOTAL', definir estrategia_aprovada='NENHUMA' e aprovado_para_divulgacao=False com parecer de manutenção em caixa.
   expected_output: >
-    Objeto estruturado com o status da decisão, qual estratégia foi aprovada, razao_risco_retorno_auditada (float), parecer prudencial detalhado e pontos de atenção.
+    Objeto estruturado com o status da decisão, estrategia_aprovada ('PRINCIPAL', 'ALTERNATIVA' ou 'NENHUMA'), razao_risco_retorno_auditada (float), parecer prudencial detalhado e pontos de atenção.
   agent: risk_coordinator
 
 gerar_relatorio_executivo_investidor_task:
   description: >
     1. Coletar os dados da decisão oficial do Coordenador de Risco e redigir o Resumo Executivo Formal direcionado ao investidor final.
     2. Reproduzir fielmente o status_decisao e a razao_risco_retorno_num auditada pelo comitê de risco.
-    3. Apresentar de forma didática a tese de investimento, a operação, a tabela com os parâmetros operacionais (entrada, alvo, stop, gregas e R/R) e o plano de gestão de risco.
+    3. Apresentar de forma didática a tese de investimento, a operação recomendada e o plano de gestão de risco.
     4. Incluir de forma obrigatória o aviso legal e regulatório da Resolução CVM nº 20/2021.
-    5. Repassar obrigatoriamente os campos numéricos tipados float da operação: preco_entrada, preco_alvo, preco_stop, strike_compra, strike_venda, premio_compra, premio_venda.
   expected_output: >
-    Documento executivo final estruturado com todos os dados da recomendação e campos numéricos tipados float preenchidos, pronto para exibição e geração do PDF oficial.
+    Documento executivo final estruturado com a síntese da recomendação, pronto para exibição e geração do PDF oficial.
   agent: research_publisher
 

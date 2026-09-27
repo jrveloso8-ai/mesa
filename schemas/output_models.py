@@ -37,6 +37,7 @@ class SelecaoFundamentalistaModel(BaseModel):
 class AnaliseTecnicaModel(BaseModel):
     ticker: str = Field(default="DADOS_INDISPONIVEIS", description="Ticker do ativo analisado")
     tendencia: str = Field(default="Lateral", description="Tendência técnica (Alta, Baixa ou Lateral)")
+    preco_atual: Optional[float] = Field(default=None, description="Preço atual medido da ação na BRAPI")
     suporte: float = Field(default=0.0, description="Região de suporte relevante em R$")
     resistencia: float = Field(default=0.0, description="Região de resistência relevante em R$")
     rsi_ifr: Optional[float] = Field(default=50.0, description="Índice de Força Relativa (14 períodos)")
@@ -67,6 +68,14 @@ class EstrategiaDetalheModel(BaseModel):
     relacao_risco_retorno: str = Field(default="N/D", description="Relação ganho/perda em texto (ex: 2.1 : 1)")
     razao_risco_retorno_num: float = Field(default=0.0, description="Razão Risco/Retorno numérica pura (ex: 2.15). Se < 1.5, operação é desclassificada.")
     horizonte: str = Field(default="Swing Trade", description="Swing Trade ou Position Mensal")
+    preco_entrada: Optional[float] = Field(default=None, description="Preço de entrada da operação em R$")
+    preco_alvo: Optional[float] = Field(default=None, description="Preço alvo da operação em R$")
+    preco_stop: Optional[float] = Field(default=None, description="Preço de stop loss em R$")
+    strike_compra: Optional[float] = Field(default=None, description="Strike da ponta comprada em R$")
+    strike_venda: Optional[float] = Field(default=None, description="Strike da ponta vendida em R$")
+    premio_compra: Optional[float] = Field(default=None, description="Prêmio pago na ponta comprada em R$")
+    premio_venda: Optional[float] = Field(default=None, description="Prêmio recebido na ponta vendida em R$")
+    origem_premios: Optional[str] = Field(default=None, description="Origem dos prêmios (ex: 'BRAPI_V2_OPTIONS_MEDIDO' ou 'BLACK_SCHOLES')")
 
 
 class PropostaEstrategiaModel(BaseModel):
@@ -81,10 +90,12 @@ class PropostaEstrategiaModel(BaseModel):
     strike_venda: Optional[float] = Field(default=None, description="Strike da ponta vendida em R$")
     premio_compra: Optional[float] = Field(default=None, description="Prêmio pago na ponta comprada em R$")
     premio_venda: Optional[float] = Field(default=None, description="Prêmio recebido na ponta vendida em R$")
+    origem_premios: Optional[str] = Field(default=None, description="Origem dos prêmios das opções")
 
 
 class DecisaoRiscoModel(BaseModel):
     status: str = Field(default="REPROVADO_TOTAL", description="Status final: 'APROVADO_PRINCIPAL', 'APROVADO_ALTERNATIVA' ou 'REPROVADO_TOTAL'")
+    estrategia_aprovada: str = Field(default="NENHUMA", description="Estratégia autorizada: 'PRINCIPAL', 'ALTERNATIVA' ou 'NENHUMA'")
     estrategia_adotada: str = Field(default="Manutenção em Caixa", description="Nome da estratégia autorizada")
     razao_risco_retorno_auditada: float = Field(default=0.0, description="Razão R/R verificada pelo comitê de risco (ex: 2.15). Obrigatória para aprovação.")
     parecer_risco: str = Field(default="Parecer prudencial do Coordenador de Mesa", description="Parecer do comitê de risco")
@@ -107,8 +118,8 @@ class RelatorioExecutivoFinal(BaseModel):
     strike_venda: Optional[float] = Field(default=None, description="Strike da ponta vendida em R$")
     premio_compra: Optional[float] = Field(default=None, description="Prêmio pago na ponta comprada em R$")
     premio_venda: Optional[float] = Field(default=None, description="Prêmio recebido na ponta vendida em R$")
+    origem_premios: Optional[str] = Field(default=None, description="Origem dos prêmios das opções")
     parametros_operacionais: List[ItemParametro] = Field(default_factory=list, description="Tabela de parâmetros: Entrada, Alvo, Stop, Strikes, R/R")
     gregas: Optional[GregasOpcoesModel] = Field(default=None, description="Gregas consolidadas da estrutura calculadas por Black-Scholes")
     gestao_risco_e_saida: str = Field(default="", description="Instruções de risco e plano de contingência")
     disclaimer_cvm: str = Field(default="Em conformidade com a Resolução CVM nº 20/2021.", description="Disclaimer legal")
-

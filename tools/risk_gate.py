@@ -5,7 +5,13 @@ Impõe regras matemáticas inegociáveis de preservação de capital que NENHUMA
 
 import re
 from typing import Dict, Any, Tuple, Optional
-from schemas.output_models import DecisaoRiscoModel, RelatorioExecutivoFinal, ItemParametro
+from schemas.output_models import (
+    DecisaoRiscoModel,
+    RelatorioExecutivoFinal,
+    ItemParametro,
+    PropostaEstrategiaModel,
+    AnaliseTecnicaModel,
+)
 
 
 def calcular_rr_deterministico(entrada: float, alvo: float, stop: float) -> float:
@@ -83,6 +89,146 @@ def extrair_decisao_risco_autentica(
         aprovado_para_divulgacao=False,
         parecer_risco="Veto preventivo: saída da esteira de risco indisponível."
     )
+
+
+def extrair_proposta_estrategia(resultado_crew: Any) -> Optional[PropostaEstrategiaModel]:
+    """Extrai a PropostaEstrategiaModel produzida pelo Estrategista de Opções."""
+    if isinstance(resultado_crew, PropostaEstrategiaModel):
+        return resultado_crew
+    tasks_output = getattr(resultado_crew, "tasks_output", []) or []
+    for task_out in tasks_output:
+        pyd = getattr(task_out, "pydantic", None)
+        if isinstance(pyd, PropostaEstrategiaModel):
+            return pyd
+        if pyd and getattr(pyd, "__class__", None).__name__ == "PropostaEstrategiaModel":
+            return pyd
+    for task_out in tasks_output:
+        desc = getattr(task_out, "description", "").lower()
+        nome = getattr(task_out, "name", "").lower()
+        if "estruturar_estrategias" in nome or "estruturar_estrategias" in desc or "estrategista" in desc:
+            pyd = getattr(task_out, "pydantic", None)
+            if pyd and hasattr(pyd, "estrategia_principal"):
+                return pyd
+            raw = getattr(task_out, "raw", "")
+            if "estrategia_principal" in raw:
+                try:
+                    import json
+                    dados = json.loads(raw)
+                    return PropostaEstrategiaModel(**dados)
+                except Exception:
+                    pass
+    return None
+
+
+def copiar_campos_estrategia_aprovada(
+    resultado_crew: Any,
+    relatorio: RelatorioExecutivoFinal,
+    decisao_risco: DecisaoRiscoModel
+) -> RelatorioExecutivoFinal:
+    """
+    Copia os parâmetros da estratégia aprovada diretamente da PropostaEstrategiaModel
+    do Senior Strategist para o RelatorioExecutivoFinal, eliminando a dependência
+    da LLM do Publisher na transposição de números [V0-02b].
+    """
+    proposta = extrair_proposta_estrategia(resultado_crew)
+    estrategia = str(getattr(decisao_risco, "estrategia_aprovada", "")).upper().strip()
+
+    if "ALTERNATIVA" in estrategia:
+        if proposta is not None and proposta.estrategia_alternativa is not None:
+            alt = proposta.estrategia_alternativa
+            relatorio.preco_entrada = alt.preco_entrada if alt.preco_entrada is not None else proposta.preco_entrada
+            relatorio.preco_alvo = alt.preco_alvo if alt.preco_alvo is not None else proposta.preco_alvo
+            relatorio.preco_stop = alt.preco_stop if alt.preco_stop is not None else proposta.preco_stop
+            if alt.nome_estrategia and alt.nome_estrategia != "Aguardar no Caixa":
+                relatorio.operacao_recomendada = alt.nome_estrategia
+        relatorio.strike_compra = None
+        relatorio.strike_venda = None
+        relatorio.premio_compra = None
+        relatorio.premio_venda = None
+        relatorio.origem_premios = None
+        relatorio.gregas = None
+
+    elif "PRINCIPAL" in estrategia:
+        if proposta is not None and proposta.estrategia_principal is not None:
+            princ = proposta.estrategia_principal
+            relatorio.strike_compra = princ.strike_compra if princ.strike_compra is not None else proposta.strike_compra
+            relatorio.strike_venda = princ.strike_venda if princ.strike_venda is not None else proposta.strike_venda
+            relatorio.premio_compra = princ.premio_compra if princ.premio_compra is not None else proposta.premio_compra
+            relatorio.premio_venda = princ.premio_venda if princ.premio_venda is not None else proposta.premio_venda
+            relatorio.origem_premios = princ.origem_premios or proposta.origem_premios
+            relatorio.preco_entrada = princ.preco_entrada if princ.preco_entrada is not None else proposta.preco_entrada
+            relatorio.preco_alvo = princ.preco_alvo if princ.preco_alvo is not None else proposta.preco_alvo
+            if princ.nome_estrategia and princ.nome_estrategia != "Aguardar no Caixa":
+                relatorio.operacao_recomendada = princ.nome_estrategia
+            if princ.gregas is not None:
+                relatorio.gregas = princ.gregas
+
+            if relatorio.strike_compra is not None and relatorio.premio_compra is not None:
+                relatorio.preco_stop = None
+            else:
+                relatorio.preco_stop = princ.preco_stop if princ.preco_stop is not None else proposta.preco_stop
+
+    elif "NENHUMA" in estrategia or not getattr(decisao_risco, "aprovado_para_divulgacao", False):
+        relatorio.preco_entrada = None
+        relatorio.preco_alvo = None
+        relatorio.preco_stop = None
+        relatorio.strike_compra = None
+        relatorio.strike_venda = None
+        relatorio.premio_compra = None
+        relatorio.premio_venda = None
+        relatorio.origem_premios = None
+        relatorio.gregas = None
+
+    return relatorio
+
+
+def extrair_preco_atual_medido(resultado_crew: Any, ticker: Optional[str] = None) -> Optional[float]:
+    """
+    Extrai a cotação real (preco_atual) medida pelo analista técnico ou screener
+    durante a mesma execução, a partir dos outputs das tarefas [V0-02b].
+    """
+    if hasattr(resultado_crew, "preco_atual") and getattr(resultado_crew, "preco_atual", None) is not None:
+        try:
+            val = float(resultado_crew.preco_atual)
+            if val > 0:
+                return val
+        except Exception:
+            pass
+
+    tasks_output = getattr(resultado_crew, "tasks_output", []) or []
+    for task_out in tasks_output:
+        pyd = getattr(task_out, "pydantic", None)
+        if isinstance(pyd, AnaliseTecnicaModel):
+            if pyd.preco_atual is not None and float(pyd.preco_atual) > 0:
+                return float(pyd.preco_atual)
+        if pyd and getattr(pyd, "__class__", None).__name__ == "AnaliseTecnicaModel":
+            pa = getattr(pyd, "preco_atual", None)
+            if pa is not None and float(pa) > 0:
+                return float(pa)
+
+    for task_out in tasks_output:
+        desc = getattr(task_out, "description", "").lower()
+        nome = getattr(task_out, "name", "").lower()
+        if "timing" in desc or "técnico" in desc or "tecnico" in desc or "validar_timing" in nome:
+            pyd = getattr(task_out, "pydantic", None)
+            if pyd and getattr(pyd, "preco_atual", None) is not None:
+                try:
+                    val = float(pyd.preco_atual)
+                    if val > 0:
+                        return val
+                except Exception:
+                    pass
+            raw = str(getattr(task_out, "raw", ""))
+            match = re.search(r'["\']preco_atual["\']\s*:\s*([0-9]+\.?[0-9]*)', raw)
+            if match:
+                try:
+                    val = float(match.group(1))
+                    if val > 0:
+                        return val
+                except Exception:
+                    pass
+
+    return None
 
 
 from tools.options_tools import calcular_payoff_trava_alta
@@ -167,6 +313,8 @@ def auditar_gate_de_risco_programatico(
     strike_venda: Optional[float] = None,
     premio_compra: Optional[float] = None,
     premio_venda: Optional[float] = None,
+    preco_atual_medido: Optional[float] = None,
+    origem_premios: Optional[str] = None,
 ) -> Tuple[bool, str, str]:
     """
     Executa a auditoria programática rígida da recomendação.
@@ -179,6 +327,8 @@ def auditar_gate_de_risco_programatico(
     4. R/R declarado divergindo do calculado em mais de 0.05 -> Veto por divergência.
     5. R/R calculado < 1.50 -> Veto por assimetria insuficiente.
     6. Relatório sem parâmetros numéricos tipados -> Veto.
+    7. Preço de entrada sem lastro de mercado (> 5% de divergência da cotação medida) -> Veto [V0-02b].
+    8. Trava de opções sem prêmios medidos reais da BRAPI -> Veto [V0-02b].
     """
     # Se decisao_risco não foi fornecida, cria padrão defensivo
     if decisao_risco is None:
@@ -212,6 +362,8 @@ def auditar_gate_de_risco_programatico(
             premio_compra = getattr(relatorio, "premio_compra", None)
         if premio_venda is None:
             premio_venda = getattr(relatorio, "premio_venda", None)
+        if origem_premios is None:
+            origem_premios = getattr(relatorio, "origem_premios", None)
 
     # R/R declarado pelo modelo
     if rr_declarado is None:
@@ -230,6 +382,13 @@ def auditar_gate_de_risco_programatico(
                 False,
                 "REPROVADO_TOTAL",
                 "VETO PROGRAMÁTICO DE CÓDIGO: Prêmios de compra ou venda ausentes para cálculo de payoff da trava."
+            )
+        # Validação de origem de prêmios para trava de opções [V0-02b]
+        if origem_premios != "BRAPI_V2_OPTIONS_MEDIDO":
+            return (
+                False,
+                "REPROVADO_TOTAL",
+                "Premios sem cotacao real: trava aprovada sem dados de book da BRAPI"
             )
         try:
             fn_payoff = getattr(calcular_payoff_trava_alta, "func", calcular_payoff_trava_alta)
@@ -267,6 +426,7 @@ def auditar_gate_de_risco_programatico(
             return False, "REPROVADO_TOTAL", "VETO PROGRAMÁTICO DE CÓDIGO: Preço alvo menor ou igual ao preço de entrada numa compra."
         if s >= e:
             return False, "REPROVADO_TOTAL", "VETO PROGRAMÁTICO DE CÓDIGO: Stop loss maior ou igual ao preço de entrada numa compra."
+
         ganho = a - e
         perda = e - s
         if perda <= 0 or ganho <= 0:
@@ -303,6 +463,21 @@ def auditar_gate_de_risco_programatico(
             "REPROVADO_TOTAL",
             f"VETO PROGRAMÁTICO DE CÓDIGO: Relação R/R ({rr_calculado:.2f}:1) é estritamente inferior ao piso obrigatório de 1.50:1 ou foi omitida da recomendação."
         )
+
+    # Validação de lastro de mercado no gate de risco [V0-02b]
+    if preco_entrada is not None:
+        if preco_atual_medido is None:
+            return (
+                False,
+                "REPROVADO_TOTAL",
+                "Preco de entrada sem cotacao de referencia disponivel"
+            )
+        if abs(float(preco_entrada) - preco_atual_medido) / preco_atual_medido > 0.05:
+            return (
+                False,
+                "REPROVADO_TOTAL",
+                f"Preco de entrada sem lastro de mercado: entrada em R$ {float(preco_entrada):.2f} diverge mais de 5% da cotacao medida R$ {preco_atual_medido:.2f}"
+            )
 
     status_aprovado = decisao_risco.status if decisao_risco.status in ["APROVADO_PRINCIPAL", "APROVADO_ALTERNATIVA"] else "APROVADO_PRINCIPAL"
     return True, status_aprovado, f"Aprovado pelo Comitê de Risco e Validado pelo Gate ({status_aprovado} | R/R: {rr_calculado:.2f}:1)."

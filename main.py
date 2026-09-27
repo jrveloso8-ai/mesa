@@ -125,27 +125,37 @@ def run():
         if hasattr(relatorio, "data_geracao"):
             relatorio.data_geracao = data_execucao
 
-        # Auditoria com Gate de Risco Programático em Código (Audit Items A & B)
+        # Auditoria com Gate de Risco Programático em Código (Audit Items A & B & V0-02b)
         from tools.risk_gate import (
             auditar_gate_de_risco_programatico,
             aplicar_contingencia_de_veto,
             extrair_decisao_risco_autentica,
-            extrair_rr_efetivo
+            extrair_rr_efetivo,
+            copiar_campos_estrategia_aprovada,
+            extrair_preco_atual_medido,
         )
 
         # 1. Extração autenticada da decisão direta do Coordenador de Risco (Item B)
         decisao_risco_autentica = extrair_decisao_risco_autentica(resultado, relatorio)
 
-        # 2. Extração consolidada e anti-omissão da Razão R/R calculada em código (Item A)
+        # 2. Cópia programática dos parâmetros da estratégia aprovada (Item V0-02b)
+        relatorio = copiar_campos_estrategia_aprovada(resultado, relatorio, decisao_risco_autentica)
+
+        # 3. Cotação medida para validação de lastro de mercado (Item V0-02b)
+        preco_medido = extrair_preco_atual_medido(resultado, ticker=getattr(relatorio, "ativo_alvo", None))
+
+        # 4. Extração consolidada e anti-omissão da Razão R/R calculada em código (Item A)
         rr_efetivo = extrair_rr_efetivo(relatorio, decisao_risco_autentica)
         rr_declarado = getattr(decisao_risco_autentica, "razao_risco_retorno_auditada", 0.0) or getattr(relatorio, "razao_risco_retorno_num", 0.0)
 
-        # 3. Auditoria programática em código inegociável
+        # 5. Auditoria programática em código inegociável
         aprovado_gate, status_final, motivo_gate = auditar_gate_de_risco_programatico(
             decisao_risco=decisao_risco_autentica,
             razao_risco_retorno=rr_efetivo,
             relatorio=relatorio,
-            rr_declarado=rr_declarado
+            rr_declarado=rr_declarado,
+            preco_atual_medido=preco_medido,
+            origem_premios=getattr(relatorio, "origem_premios", None),
         )
 
         if not aprovado_gate:

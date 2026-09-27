@@ -52,7 +52,9 @@ from tools.risk_gate import (
     auditar_gate_de_risco_programatico,
     aplicar_contingencia_de_veto,
     extrair_decisao_risco_autentica,
-    extrair_rr_efetivo
+    extrair_rr_efetivo,
+    copiar_campos_estrategia_aprovada,
+    extrair_preco_atual_medido,
 )
 from tools.brapi_tools import consultar_dados_tecnicos_e_medias, CESTA_LIQUIDEZ_B3
 from tools.options_tools import calcular_payoff_trava_alta
@@ -405,8 +407,11 @@ def executar_esteira_background():
         estrategia = getattr(relatorio, "operacao_recomendada", "Operação Analisada")
         resumo = getattr(relatorio, "resumo_executivo", str(resultado_crew))
 
-        # Aplicação Estrita do Gate de Risco em Código (Audit Items A & B)
+        # Aplicação Estrita do Gate de Risco em Código (Audit Items A, B & V0-02b)
         decisao_risco_autentica = extrair_decisao_risco_autentica(resultado_crew, relatorio)
+        relatorio = copiar_campos_estrategia_aprovada(resultado_crew, relatorio, decisao_risco_autentica)
+        preco_medido = extrair_preco_atual_medido(resultado_crew, ticker=getattr(relatorio, "ativo_alvo", None))
+
         rr_efetivo = extrair_rr_efetivo(relatorio, decisao_risco_autentica)
         rr_declarado = getattr(decisao_risco_autentica, "razao_risco_retorno_auditada", 0.0) or getattr(relatorio, "razao_risco_retorno_num", 0.0)
 
@@ -414,7 +419,9 @@ def executar_esteira_background():
             decisao_risco=decisao_risco_autentica,
             razao_risco_retorno=rr_efetivo,
             relatorio=relatorio,
-            rr_declarado=rr_declarado
+            rr_declarado=rr_declarado,
+            preco_atual_medido=preco_medido,
+            origem_premios=getattr(relatorio, "origem_premios", None),
         )
 
         params_dict = {}

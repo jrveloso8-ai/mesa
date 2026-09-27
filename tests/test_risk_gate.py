@@ -228,7 +228,8 @@ def test_v0_01_gate_aprova_quando_declarado_e_calculado_sao_consistentes():
         preco_entrada=43.55,
         preco_alvo=50.0,
         preco_stop=41.50,
-        rr_declarado=3.15
+        rr_declarado=3.15,
+        preco_atual_medido=43.55
     )
     assert aprovado is True
     assert status == "APROVADO_PRINCIPAL"
@@ -277,7 +278,8 @@ def test_v0_01_gate_trava_de_alta_payoff():
         strike_venda=52.0,
         premio_compra=1.50,
         premio_venda=0.50,
-        rr_declarado=3.0
+        rr_declarado=3.0,
+        origem_premios="BRAPI_V2_OPTIONS_MEDIDO"
     )
     assert aprovado is True
     assert status == "APROVADO_PRINCIPAL"
@@ -326,7 +328,11 @@ def test_v0_02_relatorio_com_campos_float_e_data_execucao():
         aprovado_para_divulgacao=True,
         razao_risco_retorno_auditada=2.0
     )
-    aprovado, status, motivo = auditar_gate_de_risco_programatico(decisao_risco=decisao, relatorio=relatorio)
+    aprovado, status, motivo = auditar_gate_de_risco_programatico(
+        decisao_risco=decisao,
+        relatorio=relatorio,
+        preco_atual_medido=40.0
+    )
     assert aprovado is True
     assert status == "APROVADO_PRINCIPAL"
     assert relatorio.data_geracao == data_atual

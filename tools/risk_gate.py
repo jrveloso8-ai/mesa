@@ -487,13 +487,29 @@ def auditar_gate_de_risco_programatico(
     return True, status_aprovado, f"Aprovado pelo Comitê de Risco e Validado pelo Gate ({status_aprovado} | R/R: {rr_calculado:.2f}:1)."
 
 
+DISCLAIMER_CVM_OFICIAL = (
+    "Este relatório foi elaborado com fins exclusivamente informativos pela Mesa de Operações e não constitui oferta "
+    "pública de valores mobiliários. Operações em renda variável e derivativos (opções) envolvem risco substancial "
+    "de perda de capital e podem não ser adequadas a todos os perfis de investidor. A rentabilidade obtida no passado "
+    "não representa garantia de rentabilidade futura. Todas as tomadas de decisão são de responsabilidade exclusiva "
+    "do investidor."
+)
+
+
 def aplicar_contingencia_de_veto(relatorio: RelatorioExecutivoFinal, motivo_veto: str) -> RelatorioExecutivoFinal:
     """
-    Ajusta programaticamente o relatório executivo final caso a operação seja vetada pelo Gate de Risco.
-    Garante que parâmetros especulativos sejam removidos e substituídos por instruções de retenção de caixa.
+    Ajusta programaticamente o relatório executivo final caso a operação seja vetada pelo Gate de Risco [V1-02].
+    Garante que parâmetros especulativos sejam removidos e substituídos por instruções de retenção de caixa,
+    eliminando textos alucinados de aprovação e padronizando o disclaimer regulatório.
     """
     relatorio.status_decisao = "REPROVADO_TOTAL"
     relatorio.operacao_recomendada = "Recomendação de Manutenção em Caixa (Operação Vetada por Risco)"
+    relatorio.resumo_executivo = (
+        f"Operacao vetada pelo gate de risco: {motivo_veto}. "
+        "A analise dos agentes foi descartada para fins operacionais. "
+        "Mantenha 100% dos recursos em caixa/CDI."
+    )
+    relatorio.disclaimer_cvm = DISCLAIMER_CVM_OFICIAL
     relatorio.razao_risco_retorno_num = 0.0
     relatorio.preco_entrada = None
     relatorio.preco_alvo = None

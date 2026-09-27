@@ -64,12 +64,14 @@ def test_gate_de_risco_veta_programaticamente_se_rr_menor_que_1_5():
 
 
 def test_aplicar_contingencia_de_veto():
-    """Valida que o plano de contingência remove parâmetros de compra e prescreve caixa."""
+    """Valida que o plano de contingência remove parâmetros de compra e prescreve caixa [V1-02]."""
     relatorio = RelatorioExecutivoFinal(
         titulo="Recomendação de Compra",
         ativo_alvo="VALE3",
         operacao_recomendada="Compra a Seco",
-        status_decisao="APROVADO_PRINCIPAL"
+        status_decisao="APROVADO_PRINCIPAL",
+        resumo_executivo="A operação de compra recomendada para VALE3 foi aprovada pelo estrategista com alto potencial.",
+        disclaimer_cvm="Relatório elaborado por analistas certificados CNPI."
     )
 
     relatorio_seguro = aplicar_contingencia_de_veto(relatorio, "Risco excessivo no minério de ferro")
@@ -77,6 +79,17 @@ def test_aplicar_contingencia_de_veto():
     assert "Manutenção em Caixa" in relatorio_seguro.operacao_recomendada
     assert any("MANTER 100% EM CAIXA" in p.valor for p in relatorio_seguro.parametros_operacionais)
     assert relatorio_seguro.gregas is None
+
+    # Validações [V1-02]
+    resumo_lower = relatorio_seguro.resumo_executivo.lower()
+    assert "aprovad" not in resumo_lower
+    assert "recomendad" not in resumo_lower
+    assert "operacao vetada pelo gate de risco" in resumo_lower
+
+    disclaimer_lower = relatorio_seguro.disclaimer_cvm.lower()
+    assert "certificado" not in disclaimer_lower
+    assert "cnpi" not in disclaimer_lower
+    assert "exclusivamente informativos" in disclaimer_lower
 
 
 def test_gate_de_risco_veta_se_rr_for_omitido_ou_zero():

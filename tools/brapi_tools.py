@@ -26,9 +26,17 @@ except ImportError:
 CESTA_LIQUIDEZ_B3 = ["PETR4", "VALE3", "ITUB4", "BBDC4", "BBAS3", "ABEV3", "B3SA3", "WEGE3", "RENT3", "SUZB3"]
 
 
-def _get_brapi_headers_and_token() -> tuple[str, str]:
+def _get_brapi_config() -> tuple[str, dict, str]:
     token = (os.getenv("BRAPI_TOKEN") or os.getenv("BRAPI_API_KEY") or "").strip()
     base_url = "https://brapi.dev/api"
+    headers = {}
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
+    return base_url, headers, token
+
+
+def _get_brapi_headers_and_token() -> tuple[str, str]:
+    base_url, _, token = _get_brapi_config()
     return base_url, token
 
 
@@ -69,15 +77,12 @@ def consultar_cotacoes_cesta_liquidez() -> Dict[str, Any]:
     Consulta o preço atualizado, variação percentual do dia e volume negociado
     de todos os ativos da cesta de liquidez diretamente na BRAPI.
     """
-    base_url, token = _get_brapi_headers_and_token()
+    base_url, headers, _ = _get_brapi_config()
     tickers_str = ",".join(CESTA_LIQUIDEZ_B3)
     url = f"{base_url}/quote/{tickers_str}"
-    params = {}
-    if token:
-        params["token"] = token
 
     try:
-        response = requests.get(url, params=params, timeout=12)
+        response = requests.get(url, headers=headers, timeout=12)
         if response.status_code == 200:
             data = response.json()
             resultados = []
@@ -95,9 +100,10 @@ def consultar_cotacoes_cesta_liquidez() -> Dict[str, Any]:
                     })
             return {"status": "sucesso", "total_ativos": len(resultados), "dados": resultados}
         else:
-            return {"status": "erro", "codigo_http": response.status_code, "mensagem": response.text}
+            return {"status": "erro", "codigo_http": response.status_code, "mensagem": f"BRAPI retornou status {response.status_code}"}
     except Exception as e:
-        return {"status": "erro_conexao", "mensagem": f"Erro de comunicação com BRAPI: {str(e)}"}
+        tipo_erro = type(e).__name__
+        return {"status": "erro_conexao", "mensagem": f"Falha de conexão com a API BRAPI para cesta de liquidez: {tipo_erro}"}
 
 
 # Alias para compatibilidade
@@ -112,17 +118,15 @@ def consultar_dados_fundamentalistas(ticker: str) -> Dict[str, Any]:
     P/L, Dividend Yield, ROE, Margens, EV/EBITDA e Lucro por Ação.
     """
     ticker_clean = ticker.strip().upper()
-    base_url, token = _get_brapi_headers_and_token()
+    base_url, headers, _ = _get_brapi_config()
     url = f"{base_url}/quote/{ticker_clean}"
     params = {
         "modules": "financialData,defaultKeyStatistics,summaryProfile",
         "fundamental": "true"
     }
-    if token:
-        params["token"] = token
 
     try:
-        response = requests.get(url, params=params, timeout=12)
+        response = requests.get(url, params=params, headers=headers, timeout=12)
         if response.status_code == 200:
             data = response.json()
             results = data.get("results", [])
@@ -184,10 +188,11 @@ def consultar_dados_fundamentalistas(ticker: str) -> Dict[str, Any]:
                 "dados_disponiveis": False
             }
     except Exception as e:
+        tipo_erro = type(e).__name__
         return {
             "status": "erro_conexao",
             "ticker": ticker_clean,
-            "mensagem": f"Falha ao consultar fundamentalista para {ticker_clean}: {str(e)}",
+            "mensagem": f"Falha de conexão com a API BRAPI para {ticker_clean}: {tipo_erro}",
             "dados_disponiveis": False
         }
 
@@ -200,17 +205,15 @@ def consultar_dados_tecnicos_e_medias(ticker: str) -> Dict[str, Any]:
     Suportes, Resistências, RSI-14 e a Volatilidade Histórica Real Anualizada.
     """
     ticker_clean = ticker.strip().upper()
-    base_url, token = _get_brapi_headers_and_token()
+    base_url, headers, _ = _get_brapi_config()
     url = f"{base_url}/quote/{ticker_clean}"
     params = {
         "range": "3mo",
         "interval": "1d"
     }
-    if token:
-        params["token"] = token
 
     try:
-        response = requests.get(url, params=params, timeout=12)
+        response = requests.get(url, params=params, headers=headers, timeout=12)
         if response.status_code == 200:
             data = response.json()
             results = data.get("results", [])
@@ -294,7 +297,8 @@ def consultar_dados_tecnicos_e_medias(ticker: str) -> Dict[str, Any]:
         else:
             return {"status": "erro", "mensagem": f"Status {response.status_code} na BRAPI"}
     except Exception as e:
-        return {"status": "erro_processamento", "mensagem": f"Erro de processamento técnico: {str(e)}"}
+        tipo_erro = type(e).__name__
+        return {"status": "erro_processamento", "mensagem": f"Falha de conexão com a API BRAPI para {ticker_clean}: {tipo_erro}"}
 
 
 @tool("consultar_cadeia_opcoes_b3")
@@ -305,14 +309,11 @@ def consultar_cadeia_opcoes_b3(ticker: str) -> Dict[str, Any]:
     estritamente sobre o preço medido, sem valores fictícios.
     """
     ticker_clean = ticker.strip().upper()
-    base_url, token = _get_brapi_headers_and_token()
+    base_url, headers, _ = _get_brapi_config()
     url = f"{base_url}/v2/options/{ticker_clean}"
-    params = {}
-    if token:
-        params["token"] = token
 
     try:
-        response = requests.get(url, params=params, timeout=10)
+        response = requests.get(url, headers=headers, timeout=10)
         if response.status_code == 200:
             data = response.json()
             if data and data.get("results"):
@@ -326,7 +327,7 @@ def consultar_cadeia_opcoes_b3(ticker: str) -> Dict[str, Any]:
 
     # Consulta estrita da cotação real do ativo objeto para projeção transparente
     try:
-        cot_resp = requests.get(f"{base_url}/quote/{ticker_clean}", params={"token": token} if token else {}, timeout=10)
+        cot_resp = requests.get(f"{base_url}/quote/{ticker_clean}", headers=headers, timeout=10)
         if cot_resp.status_code != 200:
             return {
                 "status": "erro",
@@ -371,8 +372,9 @@ def consultar_cadeia_opcoes_b3(ticker: str) -> Dict[str, Any]:
             "aviso_metodologico": "Strikes projetados matematicamente a partir da cotação real de mercado na B3. Utilize Black-Scholes para precificar as gregas com a volatilidade medida."
         }
     except Exception as e:
+        tipo_erro = type(e).__name__
         return {
             "status": "erro",
             "origem": "EXCECAO",
-            "mensagem": f"Erro ao consultar ativo {ticker_clean}: {str(e)}"
+            "mensagem": f"Falha de conexão com a API BRAPI para {ticker_clean}: {tipo_erro}"
         }

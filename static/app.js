@@ -388,7 +388,13 @@ function renderizarGraficos(graficos) {
   }
 
   // 1. Gráfico de Fechamentos & Indicadores Técnicos
-  const candles = (graficos.candles && graficos.candles.length > 0) ? graficos.candles : [];
+  const candlesRaw = (graficos.candles && graficos.candles.length > 0) ? graficos.candles : [];
+  // Filtra apenas candles com close válido (> 0) [V0-35b]
+  const candles = candlesRaw.filter(c => {
+    const val = c.close !== undefined && c.close !== null ? c.close : (c.fechamento !== undefined && c.fechamento !== null ? c.fechamento : null);
+    return typeof val === "number" && !isNaN(val) && val > 0;
+  });
+
   let labels = [];
   let closes = [];
 
@@ -405,23 +411,31 @@ function renderizarGraficos(graficos) {
       }
       return `D-${candles.length - idx}`;
     });
-    closes = candles.map(c => c.close || c.fechamento || 0);
+    closes = candles.map(c => {
+      const v = c.close !== undefined && c.close !== null ? c.close : c.fechamento;
+      return +Number(v).toFixed(2);
+    });
   } else {
     labels = [];
     closes = [];
   }
 
-  // Calcula SMA20 para o gráfico
+  // Calcula SMA20 para o gráfico [V0-35b]
+  // Se houver menos de 20 candles disponíveis na série, preencher todos com null (não desenhar linha)
+  // Em séries com 20 ou mais candles, os primeiros 19 pontos são estritamente null (sem fallback para o preço)
   const sma20 = [];
-  for (let i = 0; i < closes.length; i++) {
-    if (i < 4 && closes.length < 20) {
-      sma20.push(closes[i]);
-    } else if (i < 19 && closes.length >= 20) {
+  if (closes.length < 20) {
+    for (let i = 0; i < closes.length; i++) {
       sma20.push(null);
-    } else {
-      const windowSize = Math.min(i + 1, 20);
-      const slice = closes.slice(i - windowSize + 1, i + 1);
-      sma20.push(+(slice.reduce((a, b) => a + b, 0) / windowSize).toFixed(2));
+    }
+  } else {
+    for (let i = 0; i < closes.length; i++) {
+      if (i < 19) {
+        sma20.push(null);
+      } else {
+        const slice = closes.slice(i - 19, i + 1);
+        sma20.push(+(slice.reduce((a, b) => a + b, 0) / 20.0).toFixed(2));
+      }
     }
   }
 

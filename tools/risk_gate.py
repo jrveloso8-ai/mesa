@@ -330,12 +330,12 @@ def auditar_gate_de_risco_programatico(
     7. Preço de entrada sem lastro de mercado (> 5% de divergência da cotação medida) -> Veto [V0-02b].
     8. Trava de opções sem prêmios medidos reais da BRAPI -> Veto [V0-02b].
     """
-    # Se decisao_risco não foi fornecida, cria padrão defensivo
+    # Regra 0: Se decisao_risco não foi fornecida, reprova por padrão [V1-01]
     if decisao_risco is None:
-        decisao_risco = DecisaoRiscoModel(
-            status="APROVADO_PRINCIPAL",
-            estrategia_adotada="Operação em Avaliação",
-            aprovado_para_divulgacao=True
+        return (
+            False,
+            "REPROVADO_TOTAL",
+            "Decisao de risco ausente: esteira nao produziu deliberacao valida"
         )
 
     # Regra 1: Veto explícito do coordenador de risco autêntico
@@ -442,8 +442,12 @@ def auditar_gate_de_risco_programatico(
         )
 
     else:
-        # Retrocompatibilidade direta para testes que passam apenas razao_risco_retorno float
-        rr_calculado = float(razao_risco_retorno)
+        # Quando relatorio is None e não há parâmetros numéricos (nem preco_entrada nem strike_compra) [V1-01]
+        return (
+            False,
+            "REPROVADO_TOTAL",
+            "Operacao sem parametros numericos tipados"
+        )
 
     # Comparação estrita entre R/R declarado pelos agentes e o calculado em código:
     if rr_declarado is not None and rr_declarado > 0:

@@ -51,7 +51,13 @@ def test_gate_de_risco_veta_programaticamente_se_rr_menor_que_1_5():
     )
     
     # Razão R/R é 1.1 : 1 (abaixo do piso de 1.5 : 1)
-    aprovado, status, motivo = auditar_gate_de_risco_programatico(decisao_alucinada, razao_risco_retorno=1.10)
+    aprovado, status, motivo = auditar_gate_de_risco_programatico(
+        decisao_risco=decisao_alucinada,
+        preco_entrada=50.0,
+        preco_alvo=51.10,
+        preco_stop=49.0,
+        rr_declarado=1.10
+    )
     assert aprovado is False
     assert status == "REPROVADO_TOTAL"
     assert "VETO PROGRAMÁTICO DE CÓDIGO" in motivo
@@ -81,15 +87,16 @@ def test_gate_de_risco_veta_se_rr_for_omitido_ou_zero():
     """
     decisao_sem_rr = DecisaoRiscoModel(
         status="APROVADO_PRINCIPAL",
-        estrategia_adotada="Trava de Alta",
+        estrategia_adotada="Compra de Ação",
         parecer_risco="Parece bom mas omitiu R/R",
         pontos_atencao=[],
         aprovado_para_divulgacao=True
     )
-    aprovado, status, motivo = auditar_gate_de_risco_programatico(decisao_sem_rr, razao_risco_retorno=0.0)
+    # Entrada sem parâmetros de preço válidos (retorna REPROVADO_TOTAL)
+    aprovado, status, motivo = auditar_gate_de_risco_programatico(decisao_sem_rr)
     assert aprovado is False
     assert status == "REPROVADO_TOTAL"
-    assert "estritamente inferior ao piso obrigatório" in motivo or "omitida" in motivo
+    assert "sem parametros numericos" in motivo.lower()
 
 
 def test_extrair_decisao_risco_autentica_captura_veto_real_do_coordenador():
@@ -238,8 +245,13 @@ def test_v0_01_gate_aprova_quando_declarado_e_calculado_sao_consistentes():
 
 def test_v0_01_gate_veta_se_alvo_menor_igual_entrada_ou_stop_maior_igual_entrada():
     """[V0-01] Validação de compra: alvo <= entrada ou stop >= entrada resulta em veto."""
+    decisao = DecisaoRiscoModel(
+        status="APROVADO_PRINCIPAL",
+        aprovado_para_divulgacao=True
+    )
     # Alvo menor que entrada
     aprovado, status, motivo = auditar_gate_de_risco_programatico(
+        decisao_risco=decisao,
         preco_entrada=50.0,
         preco_alvo=49.0,
         preco_stop=45.0
@@ -250,6 +262,7 @@ def test_v0_01_gate_veta_se_alvo_menor_igual_entrada_ou_stop_maior_igual_entrada
 
     # Stop maior que entrada
     aprovado, status, motivo = auditar_gate_de_risco_programatico(
+        decisao_risco=decisao,
         preco_entrada=50.0,
         preco_alvo=60.0,
         preco_stop=52.0
@@ -261,19 +274,26 @@ def test_v0_01_gate_veta_se_alvo_menor_igual_entrada_ou_stop_maior_igual_entrada
 
 def test_v0_01_gate_trava_de_alta_payoff():
     """[V0-01] Validação de cálculo determinístico para Trava de Alta com Call."""
+    decisao = DecisaoRiscoModel(
+        status="APROVADO_PRINCIPAL",
+        aprovado_para_divulgacao=True
+    )
     # Trava com R/R < 1.50 (spread 2.0, custo 0.85 -> lucro 1.15, perda 0.85 -> R/R = 1.35)
     aprovado, status, motivo = auditar_gate_de_risco_programatico(
+        decisao_risco=decisao,
         strike_compra=48.50,
         strike_venda=50.50,
         premio_compra=1.45,
         premio_venda=0.60,
-        rr_declarado=1.35
+        rr_declarado=1.35,
+        origem_premios="BRAPI_V2_OPTIONS_MEDIDO"
     )
     assert aprovado is False
     assert status == "REPROVADO_TOTAL"
 
     # Trava com R/R 3.0 (spread 4.0, custo 1.0 -> lucro 3.0, perda 1.0 -> R/R = 3.0)
     aprovado, status, motivo = auditar_gate_de_risco_programatico(
+        decisao_risco=decisao,
         strike_compra=48.0,
         strike_venda=52.0,
         premio_compra=1.50,
@@ -283,6 +303,26 @@ def test_v0_01_gate_trava_de_alta_payoff():
     )
     assert aprovado is True
     assert status == "APROVADO_PRINCIPAL"
+
+
+def test_v1_01_gate_reprova_quando_decisao_risco_is_none():
+    """[V1-01] Garantir que auditar_gate_de_risco_programatico(None, 2.0) retorne REPROVADO_TOTAL."""
+    aprovado, status, motivo = auditar_gate_de_risco_programatico(None, 2.0)
+    assert aprovado is False
+    assert status == "REPROVADO_TOTAL"
+    assert "Decisao de risco ausente: esteira nao produziu deliberacao valida" in motivo
+
+
+def test_v1_01_gate_reprova_quando_sem_parametros_numericos():
+    """[V1-01] Quando relatorio is None e não há parâmetros numéricos, deve vetar."""
+    decisao = DecisaoRiscoModel(
+        status="APROVADO_PRINCIPAL",
+        aprovado_para_divulgacao=True
+    )
+    aprovado, status, motivo = auditar_gate_de_risco_programatico(decisao_risco=decisao)
+    assert aprovado is False
+    assert status == "REPROVADO_TOTAL"
+    assert "Operacao sem parametros numericos tipados" in motivo
 
 
 def test_v0_02_relatorio_sem_campos_float_resulta_em_veto():
@@ -299,7 +339,11 @@ def test_v0_02_relatorio_sem_campos_float_resulta_em_veto():
         preco_alvo=None,
         preco_stop=None
     )
-    aprovado, status, motivo = auditar_gate_de_risco_programatico(relatorio=relatorio)
+    decisao = DecisaoRiscoModel(
+        status="APROVADO_PRINCIPAL",
+        aprovado_para_divulgacao=True
+    )
+    aprovado, status, motivo = auditar_gate_de_risco_programatico(decisao_risco=decisao, relatorio=relatorio)
     assert aprovado is False
     assert status == "REPROVADO_TOTAL"
     assert "sem parâmetros numéricos" in motivo.lower()

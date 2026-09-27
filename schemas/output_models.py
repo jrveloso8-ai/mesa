@@ -74,6 +74,13 @@ class PropostaEstrategiaModel(BaseModel):
     estrategia_principal: EstrategiaDetalheModel = Field(default_factory=EstrategiaDetalheModel, description="Estratégia primária recomendada")
     estrategia_alternativa: EstrategiaDetalheModel = Field(default_factory=EstrategiaDetalheModel, description="Estratégia alternativa de menor risco")
     racional_operacional: str = Field(default="Estrutura operacional da mesa", description="Justificativa")
+    preco_entrada: Optional[float] = Field(default=None, description="Preço de entrada da operação em R$")
+    preco_alvo: Optional[float] = Field(default=None, description="Preço alvo da operação em R$")
+    preco_stop: Optional[float] = Field(default=None, description="Preço de stop loss em R$")
+    strike_compra: Optional[float] = Field(default=None, description="Strike da ponta comprada em R$")
+    strike_venda: Optional[float] = Field(default=None, description="Strike da ponta vendida em R$")
+    premio_compra: Optional[float] = Field(default=None, description="Prêmio pago na ponta comprada em R$")
+    premio_venda: Optional[float] = Field(default=None, description="Prêmio recebido na ponta vendida em R$")
 
 
 class DecisaoRiscoModel(BaseModel):
@@ -93,6 +100,13 @@ class RelatorioExecutivoFinal(BaseModel):
     ativo_alvo: str = Field(default="DADOS_INDISPONIVEIS", description="Ticker do ativo recomendado")
     operacao_recomendada: str = Field(default="Manutenção em Caixa", description="Detalhamento operacional da estratégia")
     razao_risco_retorno_num: float = Field(default=0.0, description="Razão Risco/Retorno numérica auditada (ex: 2.15). Obrigatório >= 1.5 para aprovação.")
+    preco_entrada: Optional[float] = Field(default=None, description="Preço numérico de entrada em R$")
+    preco_alvo: Optional[float] = Field(default=None, description="Preço numérico de alvo em R$")
+    preco_stop: Optional[float] = Field(default=None, description="Preço numérico de stop loss em R$")
+    strike_compra: Optional[float] = Field(default=None, description="Strike da ponta comprada em R$")
+    strike_venda: Optional[float] = Field(default=None, description="Strike da ponta vendida em R$")
+    premio_compra: Optional[float] = Field(default=None, description="Prêmio pago na ponta comprada em R$")
+    premio_venda: Optional[float] = Field(default=None, description="Prêmio recebido na ponta vendida em R$")
     parametros_operacionais: List[ItemParametro] = Field(default_factory=list, description="Tabela de parâmetros: Entrada, Alvo, Stop, Strikes, R/R")
     gregas: Optional[GregasOpcoesModel] = Field(default=None, description="Gregas consolidadas da estrutura calculadas por Black-Scholes")
     gestao_risco_e_saida: str = Field(default="", description="Instruções de risco e plano de contingência")

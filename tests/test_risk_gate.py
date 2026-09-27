@@ -166,3 +166,120 @@ def test_defaults_de_schema_usam_sentinela_dados_indisponiveis():
     rel = RelatorioExecutivoFinal()
     assert rel.ativo_alvo == "DADOS_INDISPONIVEIS"
 
+
+def test_v0_01_gate_rejeita_precos_com_rr_fraco_mesmo_com_declarado_alto():
+    """
+    [V0-01] Teste com preços 50/51/48 (R/R real 0.5) e declarado 1.6:
+    O Gate DEVE rejeitar com REPROVADO_TOTAL porque o R/R calculado em código (0.5) < 1.50.
+    """
+    decisao = DecisaoRiscoModel(
+        status="APROVADO_PRINCIPAL",
+        estrategia_adotada="Compra Ação",
+        razao_risco_retorno_auditada=1.6,
+        aprovado_para_divulgacao=True
+    )
+    aprovado, status, motivo = auditar_gate_de_risco_programatico(
+        decisao_risco=decisao,
+        preco_entrada=50.0,
+        preco_alvo=51.0,
+        preco_stop=48.0,
+        rr_declarado=1.6
+    )
+    assert aprovado is False
+    assert status == "REPROVADO_TOTAL"
+
+
+def test_v0_01_gate_veta_quando_rr_declarado_diverge_do_calculado():
+    """
+    [V0-01] Teste com preços 43.55/50/41.50 (R/R calculado ~3.15) e declarado 1.55:
+    Divergência de mais de 0.05 faz o gate vetar com motivo 'R/R declarado diverge do calculado'.
+    """
+    decisao = DecisaoRiscoModel(
+        status="APROVADO_PRINCIPAL",
+        estrategia_adotada="Compra Ação",
+        razao_risco_retorno_auditada=1.55,
+        aprovado_para_divulgacao=True
+    )
+    aprovado, status, motivo = auditar_gate_de_risco_programatico(
+        decisao_risco=decisao,
+        preco_entrada=43.55,
+        preco_alvo=50.0,
+        preco_stop=41.50,
+        rr_declarado=1.55
+    )
+    assert aprovado is False
+    assert status == "REPROVADO_TOTAL"
+    assert "R/R declarado diverge do calculado" in motivo
+
+
+def test_v0_01_gate_aprova_quando_declarado_e_calculado_sao_consistentes():
+    """
+    [V0-01] Teste com preços 43.55/50/41.50 e declarado 3.15:
+    Calculado ~3.15 e declarado 3.15 -> Gate aprova.
+    """
+    decisao = DecisaoRiscoModel(
+        status="APROVADO_PRINCIPAL",
+        estrategia_adotada="Compra Ação",
+        razao_risco_retorno_auditada=3.15,
+        aprovado_para_divulgacao=True
+    )
+    aprovado, status, motivo = auditar_gate_de_risco_programatico(
+        decisao_risco=decisao,
+        preco_entrada=43.55,
+        preco_alvo=50.0,
+        preco_stop=41.50,
+        rr_declarado=3.15
+    )
+    assert aprovado is True
+    assert status == "APROVADO_PRINCIPAL"
+    assert "3.15" in motivo
+
+
+def test_v0_01_gate_veta_se_alvo_menor_igual_entrada_ou_stop_maior_igual_entrada():
+    """[V0-01] Validação de compra: alvo <= entrada ou stop >= entrada resulta em veto."""
+    # Alvo menor que entrada
+    aprovado, status, motivo = auditar_gate_de_risco_programatico(
+        preco_entrada=50.0,
+        preco_alvo=49.0,
+        preco_stop=45.0
+    )
+    assert aprovado is False
+    assert status == "REPROVADO_TOTAL"
+    assert "alvo menor ou igual" in motivo.lower()
+
+    # Stop maior que entrada
+    aprovado, status, motivo = auditar_gate_de_risco_programatico(
+        preco_entrada=50.0,
+        preco_alvo=60.0,
+        preco_stop=52.0
+    )
+    assert aprovado is False
+    assert status == "REPROVADO_TOTAL"
+    assert "stop loss maior ou igual" in motivo.lower()
+
+
+def test_v0_01_gate_trava_de_alta_payoff():
+    """[V0-01] Validação de cálculo determinístico para Trava de Alta com Call."""
+    # Trava com R/R < 1.50 (spread 2.0, custo 0.85 -> lucro 1.15, perda 0.85 -> R/R = 1.35)
+    aprovado, status, motivo = auditar_gate_de_risco_programatico(
+        strike_compra=48.50,
+        strike_venda=50.50,
+        premio_compra=1.45,
+        premio_venda=0.60,
+        rr_declarado=1.35
+    )
+    assert aprovado is False
+    assert status == "REPROVADO_TOTAL"
+
+    # Trava com R/R 3.0 (spread 4.0, custo 1.0 -> lucro 3.0, perda 1.0 -> R/R = 3.0)
+    aprovado, status, motivo = auditar_gate_de_risco_programatico(
+        strike_compra=48.0,
+        strike_venda=52.0,
+        premio_compra=1.50,
+        premio_venda=0.50,
+        rr_declarado=3.0
+    )
+    assert aprovado is True
+    assert status == "APROVADO_PRINCIPAL"
+
+

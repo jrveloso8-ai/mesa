@@ -85,30 +85,56 @@ def extrair_decisao_risco_autentica(
     )
 
 
+from tools.options_tools import calcular_payoff_trava_alta
+
+
 def extrair_rr_efetivo(
     relatorio: RelatorioExecutivoFinal,
     decisao_risco: Optional[DecisaoRiscoModel] = None
 ) -> float:
     """
-    Consolida de forma resiliente e anti-omissão a Razão Risco/Retorno (R/R) real da operação:
-    1. Campo estruturado float no schema de Risco (razao_risco_retorno_auditada).
-    2. Campo estruturado float no Relatório Executivo (razao_risco_retorno_num).
-    3. Cálculo determinístico via preços de Entrada, Alvo e Stop Loss na tabela.
-    4. Parsing numérico em parâmetros textuais de R/R.
+    Consolida de forma determinística e anti-omissão a Razão Risco/Retorno (R/R) real da operação,
+    SEMPRE calculada em código pelos parâmetros numéricos reais da operação:
+    - Trava de Alta: lucro_maximo_num / perda_maxima_num (calcular_payoff_trava_alta)
+    - Ação a vista: (preco_alvo - preco_entrada) / (preco_entrada - preco_stop)
+    - Fallback de compatibilidade via níveis de preços na tabela operacional.
+    NUNCA usa R/R declarado ou texto de '2.1:1'.
     """
-    # 1. Do modelo de risco autenticado
-    if decisao_risco and decisao_risco.razao_risco_retorno_auditada > 0:
-        return float(decisao_risco.razao_risco_retorno_auditada)
+    # 1. Trava de alta via campos float estruturados
+    s_compra = getattr(relatorio, "strike_compra", None)
+    s_venda = getattr(relatorio, "strike_venda", None)
+    p_compra = getattr(relatorio, "premio_compra", None)
+    p_venda = getattr(relatorio, "premio_venda", None)
 
-    # 2. Do campo estruturado do relatório
-    if getattr(relatorio, "razao_risco_retorno_num", 0.0) > 0:
-        return float(relatorio.razao_risco_retorno_num)
+    if s_compra is not None and s_venda is not None and p_compra is not None and p_venda is not None:
+        try:
+            fn_payoff = getattr(calcular_payoff_trava_alta, "func", calcular_payoff_trava_alta)
+            res = fn_payoff(
+                strike_compra=float(s_compra),
+                premio_pago_compra=float(p_compra),
+                strike_venda=float(s_venda),
+                premio_recebido_venda=float(p_venda)
+            )
+            if isinstance(res, dict) and res.get("status") == "sucesso":
+                p_max = float(res.get("perda_maxima_num", 0.0))
+                l_max = float(res.get("lucro_maximo_num", 0.0))
+                if p_max > 0 and l_max > 0:
+                    return round(l_max / p_max, 2)
+        except Exception:
+            pass
 
-    # 3. Extração via preços operacionais (deterministico)
+    # 2. Ação a vista via campos float estruturados
+    e_val = getattr(relatorio, "preco_entrada", None)
+    a_val = getattr(relatorio, "preco_alvo", None)
+    s_val = getattr(relatorio, "preco_stop", None)
+
+    if e_val is not None and a_val is not None and s_val is not None:
+        return calcular_rr_deterministico(float(e_val), float(a_val), float(s_val))
+
+    # 3. Fallback determinístico de preços na tabela de parâmetros operacionais (sem usar texto de R/R)
     preco_entrada = 0.0
     preco_alvo = 0.0
     preco_stop = 0.0
-    rr_texto = 0.0
 
     for item in getattr(relatorio, "parametros_operacionais", []):
         nome = getattr(item, "parametro", "").lower()
@@ -120,43 +146,49 @@ def extrair_rr_efetivo(
                 preco_alvo = float(val_str.replace(",", "."))
             elif "stop" in nome:
                 preco_stop = float(val_str.replace(",", "."))
-            elif "r/r" in nome or "risco/retorno" in nome or "relação" in nome:
-                # Trata formatos "2.1:1" ou "1:2.1" ou "2.1"
-                partes = val_str.replace(",", ".").split(":")
-                nums = [float(p) for p in partes if re.match(r"^-?\d+(\.\d+)?$", p)]
-                if len(nums) == 2:
-                    rr_texto = nums[1] if nums[0] == 1.0 else nums[0]
-                elif len(nums) == 1:
-                    rr_texto = nums[0]
         except Exception:
             pass
 
     if preco_entrada > 0 and preco_alvo > 0 and preco_stop > 0:
-        rr_calc = calcular_rr_deterministico(preco_entrada, preco_alvo, preco_stop)
-        if rr_calc > 0:
-            return rr_calc
-
-    if rr_texto > 0:
-        return rr_texto
+        return calcular_rr_deterministico(preco_entrada, preco_alvo, preco_stop)
 
     return 0.0
 
 
 def auditar_gate_de_risco_programatico(
-    decisao_risco: DecisaoRiscoModel,
-    razao_risco_retorno: float = 0.0
+    decisao_risco: Optional[DecisaoRiscoModel] = None,
+    razao_risco_retorno: float = 0.0,
+    relatorio: Optional[RelatorioExecutivoFinal] = None,
+    preco_entrada: Optional[float] = None,
+    preco_alvo: Optional[float] = None,
+    preco_stop: Optional[float] = None,
+    rr_declarado: Optional[float] = None,
+    strike_compra: Optional[float] = None,
+    strike_venda: Optional[float] = None,
+    premio_compra: Optional[float] = None,
+    premio_venda: Optional[float] = None,
 ) -> Tuple[bool, str, str]:
     """
     Executa a auditoria programática rígida da recomendação.
     Retorna: (aprovado: bool, status_final: str, motivo: str)
     
     Regras estritas (Código não-burlável):
-    1. Se aprovado_para_divulgacao for False -> REPROVADO_TOTAL.
-    2. Se status for REPROVADO_TOTAL -> REPROVADO_TOTAL.
-    3. Se tentar aprovar COM RAZÃO R/R OMITIDA OU < 1.5:1 -> VETO PROGRAMÁTICO IMEDIATO.
-       (Presume-se reprovado a menos que prove matematicamente R/R >= 1.50).
+    1. Se aprovado_para_divulgacao for False ou status REPROVADO_TOTAL -> REPROVADO_TOTAL.
+    2. R/R do Gate é SEMPRE o calculado em código a partir dos parâmetros numéricos.
+    3. Alvo <= Entrada ou Stop >= Entrada numa compra -> Veto.
+    4. R/R declarado divergindo do calculado em mais de 0.05 -> Veto por divergência.
+    5. R/R calculado < 1.50 -> Veto por assimetria insuficiente.
+    6. Relatório sem parâmetros numéricos tipados -> Veto.
     """
-    # Regra 1 e 2: Veto explícito do coordenador de risco autêntico
+    # Se decisao_risco não foi fornecida, cria padrão defensivo
+    if decisao_risco is None:
+        decisao_risco = DecisaoRiscoModel(
+            status="APROVADO_PRINCIPAL",
+            estrategia_adotada="Operação em Avaliação",
+            aprovado_para_divulgacao=True
+        )
+
+    # Regra 1: Veto explícito do coordenador de risco autêntico
     if not decisao_risco.aprovado_para_divulgacao or decisao_risco.status == "REPROVADO_TOTAL":
         return (
             False,
@@ -164,17 +196,116 @@ def auditar_gate_de_risco_programatico(
             f"VETO DO COMITÊ DE RISCO: {decisao_risco.parecer_risco or 'Operação vetada pelo Coordenador de Risco.'}"
         )
 
-    # Regra 3: Piso matemático inegociável de assimetria (mínimo obrigatório 1.5:1).
-    # Omissão (0.0) ou valor abaixo de 1.5 veta automaticamente.
-    if razao_risco_retorno < 1.5:
+    # Coleta de campos numéricos (prioriza argumentos explícitos e em seguida relatorio)
+    if relatorio is not None:
+        if preco_entrada is None:
+            preco_entrada = getattr(relatorio, "preco_entrada", None)
+        if preco_alvo is None:
+            preco_alvo = getattr(relatorio, "preco_alvo", None)
+        if preco_stop is None:
+            preco_stop = getattr(relatorio, "preco_stop", None)
+        if strike_compra is None:
+            strike_compra = getattr(relatorio, "strike_compra", None)
+        if strike_venda is None:
+            strike_venda = getattr(relatorio, "strike_venda", None)
+        if premio_compra is None:
+            premio_compra = getattr(relatorio, "premio_compra", None)
+        if premio_venda is None:
+            premio_venda = getattr(relatorio, "premio_venda", None)
+
+    # R/R declarado pelo modelo
+    if rr_declarado is None:
+        if decisao_risco and getattr(decisao_risco, "razao_risco_retorno_auditada", 0.0) > 0:
+            rr_declarado = float(decisao_risco.razao_risco_retorno_auditada)
+        elif relatorio and getattr(relatorio, "razao_risco_retorno_num", 0.0) > 0:
+            rr_declarado = float(relatorio.razao_risco_retorno_num)
+
+    # Determinação estrita do R/R calculado em código:
+    rr_calculado = 0.0
+
+    # Caso A: Trava de alta com call
+    if strike_compra is not None and strike_venda is not None:
+        if premio_compra is None or premio_venda is None:
+            return (
+                False,
+                "REPROVADO_TOTAL",
+                "VETO PROGRAMÁTICO DE CÓDIGO: Prêmios de compra ou venda ausentes para cálculo de payoff da trava."
+            )
+        try:
+            fn_payoff = getattr(calcular_payoff_trava_alta, "func", calcular_payoff_trava_alta)
+            res_payoff = fn_payoff(
+                strike_compra=float(strike_compra),
+                premio_pago_compra=float(premio_compra),
+                strike_venda=float(strike_venda),
+                premio_recebido_venda=float(premio_venda)
+            )
+            if not isinstance(res_payoff, dict) or res_payoff.get("status") != "sucesso":
+                msg = res_payoff.get("mensagem", "Falha no cálculo de payoff da trava") if isinstance(res_payoff, dict) else "Erro payoff"
+                return False, "REPROVADO_TOTAL", f"VETO PROGRAMÁTICO DE CÓDIGO: {msg}"
+            p_max = float(res_payoff.get("perda_maxima_num", 0.0))
+            l_max = float(res_payoff.get("lucro_maximo_num", 0.0))
+            if p_max <= 0:
+                return False, "REPROVADO_TOTAL", "VETO PROGRAMÁTICO DE CÓDIGO: Perda máxima inválida (<= 0) na trava."
+            rr_calculado = l_max / p_max
+        except Exception as e_trava:
+            return False, "REPROVADO_TOTAL", f"VETO PROGRAMÁTICO DE CÓDIGO: Erro no cálculo de payoff: {str(e_trava)}"
+
+    # Caso B: Ação a vista
+    elif preco_entrada is not None or preco_alvo is not None or preco_stop is not None:
+        if preco_entrada is None or preco_alvo is None or preco_stop is None:
+            return (
+                False,
+                "REPROVADO_TOTAL",
+                "VETO PROGRAMÁTICO DE CÓDIGO: Parâmetros numéricos incompletos (entrada, alvo ou stop ausentes)."
+            )
+        e = float(preco_entrada)
+        a = float(preco_alvo)
+        s = float(preco_stop)
+        if e <= 0 or a <= 0 or s <= 0:
+            return False, "REPROVADO_TOTAL", "VETO PROGRAMÁTICO DE CÓDIGO: Preços de entrada, alvo e stop devem ser positivos."
+        if a <= e:
+            return False, "REPROVADO_TOTAL", "VETO PROGRAMÁTICO DE CÓDIGO: Preço alvo menor ou igual ao preço de entrada numa compra."
+        if s >= e:
+            return False, "REPROVADO_TOTAL", "VETO PROGRAMÁTICO DE CÓDIGO: Stop loss maior ou igual ao preço de entrada numa compra."
+        ganho = a - e
+        perda = e - s
+        if perda <= 0 or ganho <= 0:
+            return False, "REPROVADO_TOTAL", "VETO PROGRAMÁTICO DE CÓDIGO: Parâmetros de risco/retorno inválidos."
+        rr_calculado = ganho / perda
+
+    elif relatorio is not None:
+        # Se veio um relatório mas nenhum parâmetro numérico foi preenchido: VETO!
         return (
             False,
             "REPROVADO_TOTAL",
-            f"VETO PROGRAMÁTICO DE CÓDIGO: Relação R/R ({razao_risco_retorno:.2f}:1) é estritamente inferior ao piso obrigatório de 1.50:1 ou foi omitida da recomendação."
+            "VETO PROGRAMÁTICO DE CÓDIGO: Operação sem parâmetros numéricos tipados de entrada, alvo ou stop."
+        )
+
+    else:
+        # Retrocompatibilidade direta para testes que passam apenas razao_risco_retorno float
+        rr_calculado = float(razao_risco_retorno)
+
+    # Comparação estrita entre R/R declarado pelos agentes e o calculado em código:
+    if rr_declarado is not None and rr_declarado > 0:
+        divergencia = abs(rr_declarado - rr_calculado)
+        divergencia_arredondado = abs(rr_declarado - round(rr_calculado, 2))
+        if divergencia > 0.05 and divergencia_arredondado > 0.05:
+            return (
+                False,
+                "REPROVADO_TOTAL",
+                f"VETO PROGRAMÁTICO DE CÓDIGO: R/R declarado diverge do calculado (declarado: {rr_declarado:.2f}, calculado: {rr_calculado:.2f})."
+            )
+
+    # Piso matemático inegociável de assimetria (mínimo obrigatório 1.5:1)
+    if rr_calculado < 1.5:
+        return (
+            False,
+            "REPROVADO_TOTAL",
+            f"VETO PROGRAMÁTICO DE CÓDIGO: Relação R/R ({rr_calculado:.2f}:1) é estritamente inferior ao piso obrigatório de 1.50:1 ou foi omitida da recomendação."
         )
 
     status_aprovado = decisao_risco.status if decisao_risco.status in ["APROVADO_PRINCIPAL", "APROVADO_ALTERNATIVA"] else "APROVADO_PRINCIPAL"
-    return True, status_aprovado, f"Aprovado pelo Comitê de Risco e Validado pelo Gate ({status_aprovado} | R/R: {razao_risco_retorno:.2f}:1)."
+    return True, status_aprovado, f"Aprovado pelo Comitê de Risco e Validado pelo Gate ({status_aprovado} | R/R: {rr_calculado:.2f}:1)."
 
 
 def aplicar_contingencia_de_veto(relatorio: RelatorioExecutivoFinal, motivo_veto: str) -> RelatorioExecutivoFinal:
@@ -185,6 +316,13 @@ def aplicar_contingencia_de_veto(relatorio: RelatorioExecutivoFinal, motivo_veto
     relatorio.status_decisao = "REPROVADO_TOTAL"
     relatorio.operacao_recomendada = "Recomendação de Manutenção em Caixa (Operação Vetada por Risco)"
     relatorio.razao_risco_retorno_num = 0.0
+    relatorio.preco_entrada = None
+    relatorio.preco_alvo = None
+    relatorio.preco_stop = None
+    relatorio.strike_compra = None
+    relatorio.strike_venda = None
+    relatorio.premio_compra = None
+    relatorio.premio_venda = None
     relatorio.gestao_risco_e_saida = (
         f"GATE DE RISCO ATIVADO: {motivo_veto} "
         "Mantenha 100% dos recursos alocados em caixa / CDI até o surgimento de oportunidade com relação risco/retorno favorável."

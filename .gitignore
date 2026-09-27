@@ -35,8 +35,11 @@ htmlcov/
 
 # Logs e arquivos gerados em tempo de execução
 *.log
-output/*.pdf
-output/relatorio_*.md
-!output/.gitkeep
+output/
+test_output*.txt
+04_auditoria_*.txt
+05_correcao_*.txt
+03_entrega_*.zip
+entrega/
 
 .vercel

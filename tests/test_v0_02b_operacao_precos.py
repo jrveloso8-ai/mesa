@@ -103,14 +103,14 @@ def test_preco_entrada_divergencia_maior_que_5pct_e_vetada():
         razao_risco_retorno_auditada=2.0,
     )
 
-    # Entrada 40.0, mas cotação medida é 37.0 (divergência de 8.1% > 5%)
+    # Entrada 40.0, mas cotação de PETR4 no mock é 38.0 (divergência de 5.26% > 5%)
     aprovado, status, motivo = auditar_gate_de_risco_programatico(
         decisao_risco=decisao,
         preco_entrada=40.0,
         preco_alvo=50.0,
         preco_stop=35.0,
         rr_declarado=2.0,
-        preco_atual_medido=37.0,
+        ticker="PETR4",
     )
 
     assert aprovado is False
@@ -119,8 +119,16 @@ def test_preco_entrada_divergencia_maior_que_5pct_e_vetada():
     assert "diverge mais de 5%" in motivo
 
 
-def test_trava_sem_premio_medido_e_vetada():
+def test_trava_sem_premio_medido_e_vetada(monkeypatch):
     """Valida que trava de opções sem origem 'BRAPI_V2_OPTIONS_MEDIDO' é vetada."""
+    monkeypatch.setattr(
+        "tools.risk_gate.consultar_cadeia_opcoes_b3",
+        lambda ticker: {
+            "status": "sucesso",
+            "origem": "PROJECAO_SOBRE_SPOT_MEDIDO_BRAPI",
+        }
+    )
+
     decisao = DecisaoRiscoModel(
         status="APROVADO_PRINCIPAL",
         estrategia_aprovada="PRINCIPAL",
@@ -128,7 +136,7 @@ def test_trava_sem_premio_medido_e_vetada():
         razao_risco_retorno_auditada=2.0,
     )
 
-    # Trava com prêmios teóricos (Black-Scholes ou None em vez de BRAPI_V2_OPTIONS_MEDIDO)
+    # Trava com cadeia sem dados medidos
     aprovado, status, motivo = auditar_gate_de_risco_programatico(
         decisao_risco=decisao,
         strike_compra=38.0,
@@ -136,12 +144,12 @@ def test_trava_sem_premio_medido_e_vetada():
         premio_compra=1.80,
         premio_venda=0.60,
         rr_declarado=2.33,
-        origem_premios="BLACK_SCHOLES_TEORICO",
+        ticker="PETR4",
     )
 
     assert aprovado is False
     assert status == "REPROVADO_TOTAL"
-    assert "Premios sem cotacao real: trava aprovada sem dados de book da BRAPI" in motivo
+    assert "Premios sem cotacao real" in motivo
 
 
 def test_caso_valido_e_aprovado_normalmente():
@@ -153,7 +161,7 @@ def test_caso_valido_e_aprovado_normalmente():
         razao_risco_retorno_auditada=2.33,
     )
 
-    # Trava com origem real BRAPI
+    # Trava com origem real BRAPI conferida na cadeia
     aprovado, status, motivo = auditar_gate_de_risco_programatico(
         decisao_risco=decisao,
         strike_compra=38.0,
@@ -161,7 +169,7 @@ def test_caso_valido_e_aprovado_normalmente():
         premio_compra=1.80,
         premio_venda=0.60,
         rr_declarado=2.33,
-        origem_premios="BRAPI_V2_OPTIONS_MEDIDO",
+        ticker="PETR4",
     )
 
     assert aprovado is True

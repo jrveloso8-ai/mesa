@@ -301,6 +301,72 @@ def extrair_rr_efetivo(
     return 0.0
 
 
+from tools.brapi_tools import (
+    consultar_dados_tecnicos_e_medias,
+    consultar_cadeia_opcoes_b3,
+)
+
+
+def _invocar_ferramenta(tool_or_fn: Any, *args, **kwargs) -> Any:
+    """Invoca com segurança uma função pura ou Tool do CrewAI."""
+    fn = getattr(tool_or_fn, "func", tool_or_fn)
+    if callable(fn):
+        return fn(*args, **kwargs)
+    if hasattr(tool_or_fn, "run") and callable(getattr(tool_or_fn, "run")):
+        return tool_or_fn.run(*args, **kwargs)
+    raise TypeError(f"Ferramenta {tool_or_fn} não é invocável")
+
+
+def _extrair_series_cadeia_opcoes(dados: Any) -> list:
+    """Extrai recursivamente a lista de séries da cadeia de opções retornada pela BRAPI."""
+    series = []
+    if isinstance(dados, list):
+        for item in dados:
+            if isinstance(item, dict):
+                if "options" in item and isinstance(item["options"], list):
+                    series.extend(_extrair_series_cadeia_opcoes(item["options"]))
+                elif "strike" in item or "strikePrice" in item:
+                    series.append(item)
+    elif isinstance(dados, dict):
+        if "options" in dados and isinstance(dados["options"], list):
+            series.extend(_extrair_series_cadeia_opcoes(dados["options"]))
+        elif "results" in dados:
+            series.extend(_extrair_series_cadeia_opcoes(dados["results"]))
+    return series
+
+
+def _extrair_preco_serie(serie: Dict[str, Any]) -> Optional[float]:
+    """
+    Extrai o preço de mercado da série da BRAPI.
+    Prioriza 'close', com fallback ordenado para 'regularMarketPrice', 'price' e 'lastPrice'.
+    """
+    for campo in ["close", "regularMarketPrice", "price", "lastPrice"]:
+        val = serie.get(campo)
+        if val is not None:
+            try:
+                num = float(val)
+                if num > 0:
+                    return num
+            except (ValueError, TypeError):
+                continue
+    return None
+
+
+def _buscar_serie_por_strike(series: list, strike_alvo: float) -> Optional[Tuple[Dict[str, Any], Optional[float]]]:
+    """Localiza na cadeia a série correspondente ao strike alvo (tolerância de 0.01)."""
+    for item in series:
+        s_val = item.get("strike") if item.get("strike") is not None else item.get("strikePrice")
+        if s_val is not None:
+            try:
+                s_float = float(s_val)
+                if abs(s_float - float(strike_alvo)) < 0.01:
+                    preco = _extrair_preco_serie(item)
+                    return item, preco
+            except (ValueError, TypeError):
+                continue
+    return None
+
+
 def auditar_gate_de_risco_programatico(
     decisao_risco: Optional[DecisaoRiscoModel] = None,
     razao_risco_retorno: float = 0.0,
@@ -315,20 +381,26 @@ def auditar_gate_de_risco_programatico(
     premio_venda: Optional[float] = None,
     preco_atual_medido: Optional[float] = None,
     origem_premios: Optional[str] = None,
+    ticker: Optional[str] = None,
 ) -> Tuple[bool, str, str]:
     """
     Executa a auditoria programática rígida da recomendação.
     Retorna: (aprovado: bool, status_final: str, motivo: str)
     
-    Regras estritas (Código não-burlável):
+    Regras estritas (Código não-burlável [V0-02c]):
     1. Se aprovado_para_divulgacao for False ou status REPROVADO_TOTAL -> REPROVADO_TOTAL.
     2. R/R do Gate é SEMPRE o calculado em código a partir dos parâmetros numéricos.
     3. Alvo <= Entrada ou Stop >= Entrada numa compra -> Veto.
     4. R/R declarado divergindo do calculado em mais de 0.05 -> Veto por divergência.
     5. R/R calculado < 1.50 -> Veto por assimetria insuficiente.
     6. Relatório sem parâmetros numéricos tipados -> Veto.
-    7. Preço de entrada sem lastro de mercado (> 5% de divergência da cotação medida) -> Veto [V0-02b].
-    8. Trava de opções sem prêmios medidos reais da BRAPI -> Veto [V0-02b].
+    7. Cotação de referência obtida diretamente de consultar_dados_tecnicos_e_medias(ticker).
+    8. Preço de entrada de ação a no máximo 5% da cotação de referência.
+    9. Trava de alta conferida diretamente em consultar_cadeia_opcoes_b3(ticker):
+       - origem = BRAPI_V2_OPTIONS_MEDIDO;
+       - existência das duas séries na cadeia;
+       - prêmios diferem no máximo 5% dos preços da cadeia ('close');
+       - strike_compra a no máximo 10% do preço de referência.
     """
     # Regra 0: Se decisao_risco não foi fornecida, reprova por padrão [V1-01]
     if decisao_risco is None:
@@ -372,24 +444,146 @@ def auditar_gate_de_risco_programatico(
         elif relatorio and getattr(relatorio, "razao_risco_retorno_num", 0.0) > 0:
             rr_declarado = float(relatorio.razao_risco_retorno_num)
 
-    # Determinação estrita do R/R calculado em código:
+    # Identificação do ticker alvo para checagem em código [V0-02c]
+    if not ticker:
+        if relatorio is not None and getattr(relatorio, "ativo_alvo", None):
+            ticker = str(relatorio.ativo_alvo).strip().upper()
+        elif decisao_risco is not None and getattr(decisao_risco, "ativo", None):
+            ticker = str(decisao_risco.ativo).strip().upper()
+        else:
+            ticker = "ITUB4"
+
+    eh_trava = (strike_compra is not None and strike_venda is not None)
+    eh_acao = (preco_entrada is not None or preco_alvo is not None or preco_stop is not None)
+
+    if not eh_trava and not eh_acao:
+        if relatorio is not None:
+            return (
+                False,
+                "REPROVADO_TOTAL",
+                "VETO PROGRAMÁTICO DE CÓDIGO: Operação sem parâmetros numéricos tipados de entrada, alvo ou stop."
+            )
+        else:
+            return (
+                False,
+                "REPROVADO_TOTAL",
+                "Operacao sem parametros numericos tipados"
+            )
+
     rr_calculado = 0.0
 
-    # Caso A: Trava de alta com call
-    if strike_compra is not None and strike_venda is not None:
+    # Caso A: Trava de alta com call [V0-02c item c]
+    if eh_trava:
         if premio_compra is None or premio_venda is None:
             return (
                 False,
                 "REPROVADO_TOTAL",
                 "VETO PROGRAMÁTICO DE CÓDIGO: Prêmios de compra ou venda ausentes para cálculo de payoff da trava."
             )
-        # Validação de origem de prêmios para trava de opções [V0-02b]
-        if origem_premios != "BRAPI_V2_OPTIONS_MEDIDO":
+
+        # Validação da cotação de referência chamando diretamente a ferramenta técnica [V0-02c item a]
+        if not ticker or ticker == "DADOS_INDISPONIVEIS":
+            return False, "REPROVADO_TOTAL", "Sem cotacao de referencia"
+
+        try:
+            dados_tecnicos = _invocar_ferramenta(consultar_dados_tecnicos_e_medias, ticker=ticker)
+        except Exception:
+            dados_tecnicos = None
+
+        if not isinstance(dados_tecnicos, dict) or dados_tecnicos.get("status") != "sucesso":
+            return False, "REPROVADO_TOTAL", "Sem cotacao de referencia"
+
+        preco_ref_raw = dados_tecnicos.get("preco_atual")
+        if preco_ref_raw is None:
+            return False, "REPROVADO_TOTAL", "Sem cotacao de referencia"
+        try:
+            preco_ref = float(preco_ref_raw)
+            if preco_ref <= 0:
+                return False, "REPROVADO_TOTAL", "Sem cotacao de referencia"
+        except (ValueError, TypeError):
+            return False, "REPROVADO_TOTAL", "Sem cotacao de referencia"
+
+        # O gate chama diretamente consultar_cadeia_opcoes_b3(ticker)
+        try:
+            resp_opcoes = _invocar_ferramenta(consultar_cadeia_opcoes_b3, ticker=ticker)
+        except Exception:
+            resp_opcoes = None
+
+        if not isinstance(resp_opcoes, dict) or resp_opcoes.get("origem") != "BRAPI_V2_OPTIONS_MEDIDO":
+            origem_obtida = resp_opcoes.get("origem") if isinstance(resp_opcoes, dict) else "FALHA"
             return (
                 False,
                 "REPROVADO_TOTAL",
-                "Premios sem cotacao real: trava aprovada sem dados de book da BRAPI"
+                f"Premios sem cotacao real: cadeia simulada como projecao (origem: {origem_obtida})"
             )
+
+        series_cadeia = _extrair_series_cadeia_opcoes(resp_opcoes.get("dados"))
+        if not series_cadeia:
+            return (
+                False,
+                "REPROVADO_TOTAL",
+                "Cadeia de opcoes retornou sem series validas para conferencia"
+            )
+
+        serie_c = _buscar_serie_por_strike(series_cadeia, float(strike_compra))
+        if serie_c is None:
+            return (
+                False,
+                "REPROVADO_TOTAL",
+                f"Strike de compra R$ {float(strike_compra):.2f} inexistente na cadeia de opcoes"
+            )
+
+        serie_v = _buscar_serie_por_strike(series_cadeia, float(strike_venda))
+        if serie_v is None:
+            return (
+                False,
+                "REPROVADO_TOTAL",
+                f"Strike de venda R$ {float(strike_venda):.2f} inexistente na cadeia de opcoes"
+            )
+
+        _, preco_cadeia_c = serie_c
+        _, preco_cadeia_v = serie_v
+
+        if preco_cadeia_c is None or preco_cadeia_c <= 0:
+            return (
+                False,
+                "REPROVADO_TOTAL",
+                f"Serie de compra strike R$ {float(strike_compra):.2f} sem cotacao de preco na cadeia da BRAPI"
+            )
+
+        if preco_cadeia_v is None or preco_cadeia_v <= 0:
+            return (
+                False,
+                "REPROVADO_TOTAL",
+                f"Serie de venda strike R$ {float(strike_venda):.2f} sem cotacao de preco na cadeia da BRAPI"
+            )
+
+        # Prêmios devem diferir no máximo 5% dos preços da cadeia
+        dif_compra = abs(float(premio_compra) - preco_cadeia_c) / preco_cadeia_c
+        if dif_compra > 0.05:
+            return (
+                False,
+                "REPROVADO_TOTAL",
+                f"Premio de compra (R$ {float(premio_compra):.2f}) diverge mais de 5% da cotacao da cadeia (R$ {preco_cadeia_c:.2f})"
+            )
+
+        dif_venda = abs(float(premio_venda) - preco_cadeia_v) / preco_cadeia_v
+        if dif_venda > 0.05:
+            return (
+                False,
+                "REPROVADO_TOTAL",
+                f"Premio de venda (R$ {float(premio_venda):.2f}) diverge mais de 5% da cotacao da cadeia (R$ {preco_cadeia_v:.2f})"
+            )
+
+        # Strike de compra a no máximo 10% do preço de referência
+        dif_spot = abs(float(strike_compra) - preco_ref) / preco_ref
+        if dif_spot > 0.10:
+            return (
+                False,
+                "REPROVADO_TOTAL",
+                f"Strike de compra (R$ {float(strike_compra):.2f}) diverge mais de 10% da cotacao atual do ativo (R$ {preco_ref:.2f})"
+            )
+
         try:
             fn_payoff = getattr(calcular_payoff_trava_alta, "func", calcular_payoff_trava_alta)
             res_payoff = fn_payoff(
@@ -409,8 +603,8 @@ def auditar_gate_de_risco_programatico(
         except Exception as e_trava:
             return False, "REPROVADO_TOTAL", f"VETO PROGRAMÁTICO DE CÓDIGO: Erro no cálculo de payoff: {str(e_trava)}"
 
-    # Caso B: Ação a vista
-    elif preco_entrada is not None or preco_alvo is not None or preco_stop is not None:
+    # Caso B: Ação a vista [V0-02c item b]
+    elif eh_acao:
         if preco_entrada is None or preco_alvo is None or preco_stop is None:
             return (
                 False,
@@ -433,21 +627,43 @@ def auditar_gate_de_risco_programatico(
             return False, "REPROVADO_TOTAL", "VETO PROGRAMÁTICO DE CÓDIGO: Parâmetros de risco/retorno inválidos."
         rr_calculado = ganho / perda
 
-    elif relatorio is not None:
-        # Se veio um relatório mas nenhum parâmetro numérico foi preenchido: VETO!
-        return (
-            False,
-            "REPROVADO_TOTAL",
-            "VETO PROGRAMÁTICO DE CÓDIGO: Operação sem parâmetros numéricos tipados de entrada, alvo ou stop."
-        )
+        # Piso matemático inegociável de assimetria (mínimo obrigatório 1.5:1)
+        if rr_calculado < 1.5:
+            return (
+                False,
+                "REPROVADO_TOTAL",
+                f"VETO PROGRAMÁTICO DE CÓDIGO: Relação R/R ({rr_calculado:.2f}:1) é estritamente inferior ao piso obrigatório de 1.50:1 ou foi omitida da recomendação."
+            )
 
-    else:
-        # Quando relatorio is None e não há parâmetros numéricos (nem preco_entrada nem strike_compra) [V1-01]
-        return (
-            False,
-            "REPROVADO_TOTAL",
-            "Operacao sem parametros numericos tipados"
-        )
+        # Validação da cotação de referência chamando diretamente a ferramenta técnica [V0-02c item a]
+        if not ticker or ticker == "DADOS_INDISPONIVEIS":
+            return False, "REPROVADO_TOTAL", "Sem cotacao de referencia"
+
+        try:
+            dados_tecnicos = _invocar_ferramenta(consultar_dados_tecnicos_e_medias, ticker=ticker)
+        except Exception:
+            dados_tecnicos = None
+
+        if not isinstance(dados_tecnicos, dict) or dados_tecnicos.get("status") != "sucesso":
+            return False, "REPROVADO_TOTAL", "Sem cotacao de referencia"
+
+        preco_ref_raw = dados_tecnicos.get("preco_atual")
+        if preco_ref_raw is None:
+            return False, "REPROVADO_TOTAL", "Sem cotacao de referencia"
+        try:
+            preco_ref = float(preco_ref_raw)
+            if preco_ref <= 0:
+                return False, "REPROVADO_TOTAL", "Sem cotacao de referencia"
+        except (ValueError, TypeError):
+            return False, "REPROVADO_TOTAL", "Sem cotacao de referencia"
+
+        # Preço de entrada a no máximo 5% da cotação de referência [V0-02c item b]
+        if abs(e - preco_ref) / preco_ref > 0.05:
+            return (
+                False,
+                "REPROVADO_TOTAL",
+                f"Preco de entrada sem lastro de mercado: entrada em R$ {e:.2f} diverge mais de 5% da cotacao de referencia R$ {preco_ref:.2f}"
+            )
 
     # Comparação estrita entre R/R declarado pelos agentes e o calculado em código:
     if rr_declarado is not None and rr_declarado > 0:
@@ -467,21 +683,6 @@ def auditar_gate_de_risco_programatico(
             "REPROVADO_TOTAL",
             f"VETO PROGRAMÁTICO DE CÓDIGO: Relação R/R ({rr_calculado:.2f}:1) é estritamente inferior ao piso obrigatório de 1.50:1 ou foi omitida da recomendação."
         )
-
-    # Validação de lastro de mercado no gate de risco [V0-02b]
-    if preco_entrada is not None:
-        if preco_atual_medido is None:
-            return (
-                False,
-                "REPROVADO_TOTAL",
-                "Preco de entrada sem cotacao de referencia disponivel"
-            )
-        if abs(float(preco_entrada) - preco_atual_medido) / preco_atual_medido > 0.05:
-            return (
-                False,
-                "REPROVADO_TOTAL",
-                f"Preco de entrada sem lastro de mercado: entrada em R$ {float(preco_entrada):.2f} diverge mais de 5% da cotacao medida R$ {preco_atual_medido:.2f}"
-            )
 
     status_aprovado = decisao_risco.status if decisao_risco.status in ["APROVADO_PRINCIPAL", "APROVADO_ALTERNATIVA"] else "APROVADO_PRINCIPAL"
     return True, status_aprovado, f"Aprovado pelo Comitê de Risco e Validado pelo Gate ({status_aprovado} | R/R: {rr_calculado:.2f}:1)."

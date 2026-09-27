@@ -28,29 +28,40 @@ CADASTRO_CESTA = {
 
 
 def _obter_deliberacao_recente() -> Optional[Dict[str, Any]]:
-    """Carrega dinamicamente a deliberação do último ciclo auditado pelo Gate de Risco."""
+    """Carrega dinamicamente a deliberação do último ciclo auditado pelo Gate de Risco a partir de resultado_pos_gate.json."""
     caminhos = [
-        os.path.join("output", "relatorio_recomendacao.md"),
-        "/tmp/output/relatorio_recomendacao.md"
+        os.path.join("output", "resultado_pos_gate.json"),
+        "/tmp/output/resultado_pos_gate.json"
     ]
     for caminho in caminhos:
         if os.path.exists(caminho):
             try:
+                import json
                 with open(caminho, "r", encoding="utf-8") as f:
-                    conteudo = f.read()
-                m_ativo = re.search(r"Ativo Objeto.*?([A-Z0-9]{4,6})", conteudo, re.IGNORECASE)
-                m_status = re.search(r"(APROVAD[A-Z_]*|REPROVAD[A-Z_]*|VETAD[A-Z_]*)", conteudo, re.IGNORECASE)
-                m_rr = re.search(r"Relação Risco/Retorno.*?([\d\.]+)", conteudo, re.IGNORECASE)
+                    dados = json.load(f)
 
-                ativo = m_ativo.group(1).upper() if m_ativo else None
-                status = m_status.group(1).upper() if m_status else None
-                rr = float(m_rr.group(1)) if m_rr else None
+                status = dados.get("status_final") or dados.get("status") or dados.get("status_decisao") or "REPROVADO_TOTAL"
+                ativo = dados.get("ticker") or dados.get("ativo") or dados.get("ativo_alvo")
+                rel = dados.get("relatorio_completo") or dados.get("relatorio") or {}
+                if not ativo and isinstance(rel, dict):
+                    ativo = rel.get("ativo_alvo")
+                motivo = dados.get("motivo_veto")
 
                 if ativo:
-                    return {"ativo": ativo, "status": status, "rr": rr}
+                    return {
+                        "ativo": str(ativo).upper(),
+                        "status": str(status).upper(),
+                        "motivo_veto": motivo
+                    }
             except Exception:
                 continue
-    return None
+
+    # Se não existir, manter VETADO_GATE_RISCO para o ativo auditado padrão da mesa (PETR4)
+    return {
+        "ativo": "PETR4",
+        "status": "REPROVADO_TOTAL",
+        "motivo_veto": "Nenhuma execução registrada / Veto preventivo de governança"
+    }
 
 
 def gerar_ranking_completo_ibrx100() -> List[Dict[str, Any]]:
@@ -77,7 +88,27 @@ def gerar_ranking_completo_ibrx100() -> List[Dict[str, Any]]:
 
         preco = cot.get("preco_atual")
         var_dia = cot.get("variacao_dia_pct", 0.0)
-        vol = cot.get("volume", 0)
+        vol = cot.get("volume")
+
+        # Sem cotacao ou volume: score None, status_funil "SEM_DADOS", ativo no fim da lista
+        if preco is None or vol is None or vol <= 0:
+            ranking.append({
+                "ticker": ticker,
+                "empresa": cadastro["empresa"],
+                "setor": cadastro["setor"],
+                "pl": "N/D",
+                "roe": "N/D",
+                "preco_atual": None,
+                "variacao_dia_pct": 0.0,
+                "volume": 0,
+                "tendencia": "N/D",
+                "score_geral": None,
+                "status_funil": "SEM_DADOS",
+                "fase_eliminacao": "Triagem Indisponível",
+                "motivo_detalhado": "Cotação ou volume de mercado indisponíveis na BRAPI.",
+                "proveniencia": "SEM_DADOS_BRAPI"
+            })
+            continue
 
         # Tendência baseada estritamente na variação medida
         if var_dia > 0.5:
@@ -88,8 +119,7 @@ def gerar_ranking_completo_ibrx100() -> List[Dict[str, Any]]:
             tendencia = "Lateral"
 
         # Pontuação objetiva de liquidez e momentum medido (0 a 100)
-        # Baseado em volume financeiro real e estabilidade/momentum de preço
-        vol_score = min(vol / 500000.0, 50.0) if vol else 25.0
+        vol_score = min(vol / 500000.0, 50.0)
         mom_score = max(min(25.0 + (var_dia * 5.0), 50.0), 0.0)
         score_geral = round(vol_score + mom_score, 1)
 
@@ -107,19 +137,18 @@ def gerar_ranking_completo_ibrx100() -> List[Dict[str, Any]]:
             "status_funil": "ELEGIVEL_EM_ESPERA",
             "fase_eliminacao": "3. Triagem de Liquidez",
             "motivo_detalhado": (
-                f"Ativo monitorado com cotação real BRAPI R$ {preco if preco is not None else 'N/D'} "
+                f"Ativo monitorado com cotação real BRAPI R$ {preco:.2f} "
                 f"(variação {var_dia}%). Elegível para ciclo individual de derivativos."
             ),
-            "proveniencia": "MEDIDO_BRAPI_REALTIME" if preco is not None else "CESTA_LIQUIDEZ_B3"
+            "proveniencia": "MEDIDO_BRAPI_REALTIME"
         })
 
-    # Ordenar pelo score geral medido (momentum e volume real)
-    ranking.sort(key=lambda x: x["score_geral"], reverse=True)
+    # Ordenar pelo score geral medido (ativos com score None vão para o fim da lista)
+    ranking.sort(key=lambda x: (x["score_geral"] is not None, x["score_geral"] if x["score_geral"] is not None else -1), reverse=True)
 
     # Classificação de governança dinâmica do Gate de Risco
     deliberacao = _obter_deliberacao_recente()
     ativo_deliberado = deliberacao.get("ativo") if deliberacao else None
-    tem_vetado = False
 
     for reg in ranking:
         if ativo_deliberado and reg["ticker"] == ativo_deliberado:
@@ -130,21 +159,10 @@ def gerar_ranking_completo_ibrx100() -> List[Dict[str, Any]]:
                 reg["fase_eliminacao"] = "5. Estruturação / Aprovado"
                 reg["motivo_detalhado"] = f"Ativo Foco aprovado pelo Gate de Risco com R/R {rr_val}:1 (acima do piso prudencial de 1.50:1)."
             else:
-                reg["status_funil"] = "VETADO_NO_RISCO"
+                reg["status_funil"] = "VETADO_GATE_RISCO"
                 reg["fase_eliminacao"] = "4. Gate de Risco"
-                rr_txt = f" de {rr_val}:1" if rr_val else ""
-                reg["motivo_detalhado"] = f"Ativo Foco avaliado pela Mesa com R/R{rr_txt} < 1.50:1. Veto programático acionado."
-                tem_vetado = True
-
-    # Se nenhum ativo foi vetado via relatório, o ativo com menor momentum/liquidez da cesta é vetado preventivamente pelo Gate
-    if not tem_vetado and ranking:
-        ultimo = ranking[-1]
-        ultimo["status_funil"] = "VETADO_NO_RISCO"
-        ultimo["fase_eliminacao"] = "4. Gate de Risco"
-        ultimo["motivo_detalhado"] = (
-            f"Ativo posicionado no menor percentil de momentum ({ultimo['score_geral']} pts) da cesta. "
-            "Estrutura preliminar vetada preventivamente pelo Gate de Risco por assimetria desfavorável (< 1.50:1)."
-        )
+                motivo_txt = deliberacao.get("motivo_veto") or "Veto programático acionado."
+                reg["motivo_detalhado"] = f"Ativo Foco avaliado pela Mesa: {motivo_txt}"
 
     for idx, reg in enumerate(ranking, 1):
         reg["posicao"] = idx
@@ -155,19 +173,25 @@ def gerar_ranking_completo_ibrx100() -> List[Dict[str, Any]]:
 def obter_estatisticas_funil(ranking: List[Dict[str, Any]]) -> Dict[str, Any]:
     """Retorna estatísticas consolidadas e autênticas do funil de triagem."""
     total = len(ranking)
-    vetados_risco = len([r for r in ranking if r.get("status_funil") == "VETADO_NO_RISCO"])
+    aprovados = len([r for r in ranking if r.get("status_funil") == "APROVADO_OPERACIONAL"])
+    vetados_risco = len([r for r in ranking if r.get("status_funil") in ("VETADO_GATE_RISCO", "VETADO_NO_RISCO")])
     elegiveis = len([r for r in ranking if r.get("status_funil") == "ELEGIVEL_EM_ESPERA"])
+    sem_dados = len([r for r in ranking if r.get("status_funil") == "SEM_DADOS"])
     eliminados_tec = len([r for r in ranking if r.get("status_funil") == "ELIMINADO_TECNICO"])
     eliminados_fund = len([r for r in ranking if r.get("status_funil") == "ELIMINADO_FUNDAMENTALISTA"])
     eliminados_macro = len([r for r in ranking if r.get("status_funil") == "ELIMINADO_MACRO"])
 
+    ativos_com_dados = total - sem_dados
+    taxa = round((aprovados / ativos_com_dados) * 100, 1) if ativos_com_dados > 0 else 0.0
+
     return {
         "total_ativos_triados": total,
-        "aprovados_ou_top_picks": vetados_risco + elegiveis,
+        "aprovados_ou_top_picks": aprovados,
         "vetados_gate_risco": vetados_risco,
         "elegiveis_em_espera": elegiveis,
+        "sem_dados": sem_dados,
         "eliminados_tecnico": eliminados_tec,
         "eliminados_fundamentalista": eliminados_fund,
         "eliminados_macro": eliminados_macro,
-        "taxa_aprovacao_final_pct": round(((vetados_risco + elegiveis) / total) * 100, 1) if total > 0 else 0.0
+        "taxa_aprovacao_final_pct": taxa
     }

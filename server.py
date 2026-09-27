@@ -157,26 +157,44 @@ def carregar_ultimo_resultado_salvo():
                 candles_fmt.append(c_item)
 
             graficos["candles"] = candles_fmt
-            graficos["suporte"] = dados_tecnicos.get("suporte_recente", 46.80)
-            graficos["resistencia"] = dados_tecnicos.get("resistencia_recente", 50.43)
-            graficos["preco_atual"] = dados_tecnicos.get("preco_atual", 48.09)
+            graficos["suporte"] = dados_tecnicos.get("suporte_recente") if isinstance(dados_tecnicos, dict) else None
+            graficos["resistencia"] = dados_tecnicos.get("resistencia_recente") if isinstance(dados_tecnicos, dict) else None
+            graficos["preco_atual"] = dados_tecnicos.get("preco_atual") if isinstance(dados_tecnicos, dict) else None
         except Exception as err:
             print(f"Aviso dados tecnicos: {err}")
 
-        try:
-            fn_payoff = getattr(calcular_payoff_trava_alta, "func", calcular_payoff_trava_alta)
-            payoff_data = fn_payoff(
-                strike_compra=48.50,
-                premio_pago_compra=1.45,
-                strike_venda=50.50,
-                premio_recebido_venda=0.60
-            )
-            graficos["payoff"] = payoff_data.get("pontos_curva_payoff", [])
-            graficos["strike_compra"] = 48.50
-            graficos["strike_venda"] = 50.50
-            graficos["breakeven"] = payoff_data.get("breakeven", 49.35)
-        except Exception as err:
-            print(f"Aviso payoff: {err}")
+        # Gráfico de payoff: só quando a operação APROVADA pelo gate for trava de alta, com os strikes e prêmios da proposta
+        status_salvo = data.get("status_decisao", "REPROVADO_TOTAL")
+        is_aprovado = "APROVAD" in str(status_salvo).upper()
+        s_compra = data.get("strike_compra")
+        s_venda = data.get("strike_venda")
+        p_compra = data.get("premio_compra")
+        p_venda = data.get("premio_venda")
+
+        if is_aprovado and s_compra is not None and s_venda is not None and p_compra is not None and p_venda is not None:
+            try:
+                fn_payoff = getattr(calcular_payoff_trava_alta, "func", calcular_payoff_trava_alta)
+                payoff_data = fn_payoff(
+                    strike_compra=float(s_compra),
+                    premio_pago_compra=float(p_compra),
+                    strike_venda=float(s_venda),
+                    premio_recebido_venda=float(p_venda)
+                )
+                if isinstance(payoff_data, dict) and payoff_data.get("status") == "sucesso":
+                    graficos["payoff"] = payoff_data.get("pontos_curva_payoff", [])
+                    graficos["strike_compra"] = float(s_compra)
+                    graficos["strike_venda"] = float(s_venda)
+                    graficos["breakeven"] = payoff_data.get("breakeven")
+                    graficos["mensagem_payoff"] = ""
+                else:
+                    graficos["payoff"] = []
+                    graficos["mensagem_payoff"] = "Sem estrutura de opções aprovada"
+            except Exception as err:
+                graficos["payoff"] = []
+                graficos["mensagem_payoff"] = "Sem estrutura de opções aprovada"
+        else:
+            graficos["payoff"] = []
+            graficos["mensagem_payoff"] = "Sem estrutura de opções aprovada"
 
         from tools.screener_ibrx100 import gerar_ranking_completo_ibrx100
         estado_execucao["ranking"] = gerar_ranking_completo_ibrx100()
@@ -424,36 +442,56 @@ def executar_esteira_background():
             adicionar_log(f"Aviso dados técnicos: {str(e_tec)}")
 
         candles = dados_tecnicos.get("candles_recentes", []) if isinstance(dados_tecnicos, dict) else []
-        suporte_val = dados_tecnicos.get("suporte_recente", 0.0) if isinstance(dados_tecnicos, dict) else 0.0
-        resistencia_val = dados_tecnicos.get("resistencia_recente", 0.0) if isinstance(dados_tecnicos, dict) else 0.0
+        suporte_val = dados_tecnicos.get("suporte_recente") if isinstance(dados_tecnicos, dict) else None
+        resistencia_val = dados_tecnicos.get("resistencia_recente") if isinstance(dados_tecnicos, dict) else None
+        spot_atual = dados_tecnicos.get("preco_atual") if isinstance(dados_tecnicos, dict) else None
 
-        # Curva de Payoff de Opções
-        spot_atual = dados_tecnicos.get("preco_atual", 48.0) if isinstance(dados_tecnicos, dict) and dados_tecnicos.get("preco_atual") else 48.0
-        k_compra = round(spot_atual * 0.98, 1)
-        k_venda = round(spot_atual * 1.04, 1)
-        try:
-            fn_payoff = getattr(calcular_payoff_trava_alta, "func", calcular_payoff_trava_alta)
-            payoff_data = fn_payoff(
-                strike_compra=k_compra,
-                premio_pago_compra=1.60,
-                strike_venda=k_venda,
-                premio_recebido_venda=0.50
-            )
-        except Exception as e_pay:
-            payoff_data = {}
-            adicionar_log(f"Aviso cálculo payoff: {str(e_pay)}")
-        pontos_payoff = payoff_data.get("pontos_curva_payoff", []) if isinstance(payoff_data, dict) else []
+        # Gráfico de payoff: só quando a operação APROVADA pelo gate for trava de alta, com os strikes e prêmios da própria proposta
+        is_trava_aprovada = (
+            "APROVAD" in status_final.upper()
+            and getattr(relatorio, "strike_compra", None) is not None
+            and getattr(relatorio, "strike_venda", None) is not None
+            and getattr(relatorio, "premio_compra", None) is not None
+            and getattr(relatorio, "premio_venda", None) is not None
+        )
+
+        pontos_payoff = []
+        k_compra = None
+        k_venda = None
+        breakeven_val = None
+        msg_payoff = "Sem estrutura de opções aprovada"
+
+        if is_trava_aprovada:
+            k_compra = float(relatorio.strike_compra)
+            k_venda = float(relatorio.strike_venda)
+            p_compra = float(relatorio.premio_compra)
+            p_venda = float(relatorio.premio_venda)
+            try:
+                fn_payoff = getattr(calcular_payoff_trava_alta, "func", calcular_payoff_trava_alta)
+                payoff_data = fn_payoff(
+                    strike_compra=k_compra,
+                    premio_pago_compra=p_compra,
+                    strike_venda=k_venda,
+                    premio_recebido_venda=p_venda
+                )
+                if isinstance(payoff_data, dict) and payoff_data.get("status") == "sucesso":
+                    pontos_payoff = payoff_data.get("pontos_curva_payoff", [])
+                    breakeven_val = payoff_data.get("breakeven")
+                    msg_payoff = ""
+            except Exception as e_pay:
+                adicionar_log(f"Aviso cálculo payoff: {str(e_pay)}")
 
         estado_execucao["graficos"] = {
             "ativo": ativo,
             "candles": candles,
             "payoff": pontos_payoff,
+            "mensagem_payoff": msg_payoff,
             "suporte": suporte_val,
             "resistencia": resistencia_val,
             "preco_atual": spot_atual,
             "strike_compra": k_compra,
             "strike_venda": k_venda,
-            "breakeven": payoff_data.get("breakeven", round(k_compra + 1.10, 2)) if isinstance(payoff_data, dict) else 0.0
+            "breakeven": breakeven_val
         }
 
         # Extração de Gregas
@@ -575,6 +613,27 @@ def obter_dados_ativo(ticker: str):
     try:
         fn_tecnica = getattr(consultar_dados_tecnicos_e_medias, "func", consultar_dados_tecnicos_e_medias)
         dados = fn_tecnica(ticker_clean)
+        if not isinstance(dados, dict) or dados.get("status") != "sucesso":
+            return JSONResponse(
+                {
+                    "status": "erro",
+                    "mensagem": "Dados de mercado indisponiveis",
+                    "ativo": ticker_clean
+                },
+                status_code=502
+            )
+
+        preco_atual = dados.get("preco_atual")
+        if preco_atual is None:
+            return JSONResponse(
+                {
+                    "status": "erro",
+                    "mensagem": "Dados de mercado indisponiveis",
+                    "ativo": ticker_clean
+                },
+                status_code=502
+            )
+
         candles_raw = dados.get("candles_recentes", []) if isinstance(dados, dict) else []
         import datetime as dt
         candles_fmt = []
@@ -590,22 +649,8 @@ def obter_dados_ativo(ticker: str):
                 c_item["date_str"] = str(d_val)
             candles_fmt.append(c_item)
 
-        preco_atual = dados.get("preco_atual", 50.0)
-        suporte = dados.get("suporte_recente", round(preco_atual * 0.96, 2))
-        resistencia = dados.get("resistencia_recente", round(preco_atual * 1.05, 2))
-
-        strike_compra = round(preco_atual * 1.01, 2)
-        strike_venda = round(preco_atual * 1.05, 2)
-        largura = strike_venda - strike_compra
-        debito = round(largura * 0.38, 2)
-
-        fn_payoff = getattr(calcular_payoff_trava_alta, "func", calcular_payoff_trava_alta)
-        payoff_data = fn_payoff(
-            strike_compra=strike_compra,
-            premio_pago_compra=debito + 0.30,
-            strike_venda=strike_venda,
-            premio_recebido_venda=0.30
-        )
+        suporte = dados.get("suporte_recente")
+        resistencia = dados.get("resistencia_recente")
 
         resultado = {
             "status": "sucesso",
@@ -614,16 +659,13 @@ def obter_dados_ativo(ticker: str):
             "preco_atual": preco_atual,
             "suporte": suporte,
             "resistencia": resistencia,
-            "sma20": dados.get("sma20"),
-            "sma50": dados.get("sma50"),
-            "volatilidade_anualizada_pct": dados.get("volatilidade_anualizada_pct"),
+            "sma20": dados.get("sma20") or dados.get("sma_20"),
+            "sma50": dados.get("sma50") or dados.get("sma_50"),
+            "volatilidade_anualizada_pct": dados.get("volatilidade_historica_anualizada"),
             "rsi_14": dados.get("rsi_14"),
             "candles": candles_fmt,
-            "strike_compra": strike_compra,
-            "strike_venda": strike_venda,
-            "debito": debito,
-            "breakeven": payoff_data.get("breakeven", strike_compra + debito),
-            "payoff": payoff_data.get("pontos_curva_payoff", [])
+            "payoff": [],
+            "mensagem_opcoes": "Sem estrutura de opcoes aprovada"
         }
 
         # Armazenar no cache com proteção de concorrência
@@ -635,7 +677,7 @@ def obter_dados_ativo(ticker: str):
 
         return JSONResponse(resultado)
     except Exception as e:
-        return JSONResponse({"status": "erro", "mensagem": str(e), "ativo": ticker_clean}, status_code=500)
+        return JSONResponse({"status": "erro", "mensagem": "Dados de mercado indisponiveis", "ativo": ticker_clean}, status_code=502)
 
 
 @app.post("/api/iniciar")

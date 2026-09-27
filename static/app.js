@@ -407,10 +407,8 @@ function renderizarGraficos(graficos) {
     });
     closes = candles.map(c => c.close || c.fechamento || 0);
   } else {
-    // Fallback prudencial para garantir que o canvas nunca fique em branco
-    const base = graficos.preco_atual || 48.09;
-    labels = ["26/08", "29/08", "02/09", "05/09", "09/09", "12/09", "16/09", "19/09", "23/09", "25/09"];
-    closes = [46.85, 47.10, 47.45, 48.00, 48.90, 48.40, 47.95, 48.50, 48.20, base];
+    labels = [];
+    closes = [];
   }
 
   // Calcula SMA20 para o gráfico
@@ -427,10 +425,10 @@ function renderizarGraficos(graficos) {
     }
   }
 
-  const supVal = graficos.suporte || (closes[0] ? +(Math.min(...closes) * 0.98).toFixed(2) : 46.80);
-  const resVal = graficos.resistencia || (closes[0] ? +(Math.max(...closes) * 1.02).toFixed(2) : 50.40);
-  const suporteArr = new Array(closes.length).fill(supVal);
-  const resistenciaArr = new Array(closes.length).fill(resVal);
+  const supVal = graficos.suporte || (closes[0] ? +(Math.min(...closes) * 0.98).toFixed(2) : null);
+  const resVal = graficos.resistencia || (closes[0] ? +(Math.max(...closes) * 1.02).toFixed(2) : null);
+  const suporteArr = supVal !== null ? new Array(closes.length).fill(supVal) : [];
+  const resistenciaArr = resVal !== null ? new Array(closes.length).fill(resVal) : [];
 
   const canvasStock = document.getElementById("stockChart");
   if (canvasStock) {
@@ -499,15 +497,36 @@ function renderizarGraficos(graficos) {
 
   // 2. Gráfico de Curva de Payoff de Opções
   let payoffData = graficos.payoff || [];
+  const canvasPayoff = document.getElementById("payoffChart");
+  const payoffContainer = canvasPayoff ? canvasPayoff.parentElement : null;
+  let msgPayoffEl = document.getElementById("payoffEmptyMsg");
+
   if (!payoffData || payoffData.length === 0) {
-    const sCompra = graficos.strike_compra || 48.50;
-    const sVenda = graficos.strike_venda || 50.50;
-    const debito = 0.85;
-    payoffData = [];
-    for (let p = +(sCompra - 4).toFixed(1); p <= +(sVenda + 4).toFixed(1); p = +(p + 0.5).toFixed(1)) {
-      const ret = Math.max(0, p - sCompra) - Math.max(0, p - sVenda) - debito;
-      payoffData.push({ preco_ativo: p, resultado_unitario: +ret.toFixed(2) });
+    if (payoffChartInstance) {
+      payoffChartInstance.destroy();
+      payoffChartInstance = null;
     }
+    if (canvasPayoff) {
+      canvasPayoff.style.display = "none";
+    }
+    if (!msgPayoffEl && payoffContainer) {
+      msgPayoffEl = document.createElement("div");
+      msgPayoffEl.id = "payoffEmptyMsg";
+      msgPayoffEl.style.cssText = "display:flex;align-items:center;justify-content:center;height:240px;color:#94a3b8;font-size:0.95rem;text-align:center;";
+      payoffContainer.appendChild(msgPayoffEl);
+    }
+    if (msgPayoffEl) {
+      msgPayoffEl.textContent = graficos.mensagem_payoff || "Sem estrutura de opções aprovada";
+      msgPayoffEl.style.display = "flex";
+    }
+    return;
+  }
+
+  if (msgPayoffEl) {
+    msgPayoffEl.style.display = "none";
+  }
+  if (canvasPayoff) {
+    canvasPayoff.style.display = "block";
   }
 
   const canvasPayoff = document.getElementById("payoffChart");

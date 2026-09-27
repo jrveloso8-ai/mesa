@@ -607,11 +607,13 @@ async function carregarRanking() {
       const elVeto = document.getElementById("statVetadosRisco");
       const elElim = document.getElementById("statEliminadas");
 
-      if (elTotal) elTotal.textContent = data.total || 100;
-      if (elAprov) elAprov.textContent = stats.aprovados_ou_top_picks || 5;
-      if (elVeto) elVeto.textContent = stats.vetados_gate_risco || 1;
-      const totalElim = (stats.eliminados_tecnico || 0) + (stats.eliminados_fundamentalista || 0) + (stats.eliminados_macro || 0);
-      if (elElim) elElim.textContent = totalElim || 95;
+      if (elTotal) elTotal.textContent = data.total != null ? data.total : "N/D";
+      if (elAprov) elAprov.textContent = stats.aprovados_ou_top_picks != null ? stats.aprovados_ou_top_picks : "N/D";
+      if (elVeto) elVeto.textContent = stats.vetados_gate_risco != null ? stats.vetados_gate_risco : "N/D";
+      const totalElim = (stats.eliminados_tecnico != null || stats.eliminados_fundamentalista != null || stats.eliminados_macro != null)
+        ? ((stats.eliminados_tecnico || 0) + (stats.eliminados_fundamentalista || 0) + (stats.eliminados_macro || 0))
+        : (stats.eliminados != null ? stats.eliminados : null);
+      if (elElim) elElim.textContent = totalElim != null ? totalElim : "N/D";
 
       renderizarTabelaRanking(todosDadosRanking);
     }

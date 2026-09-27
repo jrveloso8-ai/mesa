@@ -637,10 +637,22 @@ def obter_ranking():
     return JSONResponse({
         "status": "sucesso",
         "tipo_base": "estatica_referencia",
-        "nota_auditoria": "Dataset estático do IBrX-100 para triagem offline rápida. A esteira em tempo real valida e consome ativos prioritários da CESTA_LIQUIDEZ_B3.",
-        "total": len(ranking),
+        "nota_auditoria": "Dataset da CESTA_LIQUIDEZ_B3 para triagem da Mesa de Operações.",
+        "total": len(CESTA_LIQUIDEZ_B3),
         "estatisticas": stats,
         "ranking": ranking
+    })
+
+
+@app.get("/api/funil")
+def obter_funil():
+    from tools.screener_ibrx100 import gerar_ranking_completo_ibrx100, obter_estatisticas_funil
+    ranking = gerar_ranking_completo_ibrx100()
+    stats = obter_estatisticas_funil(ranking)
+    return JSONResponse({
+        "status": "sucesso",
+        "total": len(CESTA_LIQUIDEZ_B3),
+        "estatisticas": stats
     })
 
 

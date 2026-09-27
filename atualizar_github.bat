@@ -24,7 +24,7 @@ if errorlevel 1 (
 echo [OK] Testes passaram com sucesso.
 echo.
 
-echo [Portão 2/3] Verificando vazamento de credenciais nos arquivos modificados...
+echo [Portão 2/3] Verificando vazamento de credenciais nos arquivos modificados e novos...
 for /f "tokens=*" %%F in ('git diff --name-only HEAD') do (
     if exist "%%F" (
         findstr /i /r "AIza sk- token=" "%%F" >nul 2>&1
@@ -32,6 +32,21 @@ for /f "tokens=*" %%F in ('git diff --name-only HEAD') do (
             echo.
             echo ====================================================================
             echo [ERRO - ABORTADO] Possivel vazamento de credenciais detectado no arquivo: %%F
+            echo Foram encontrados padroes suspeitos (AIza, sk-, token=).
+            echo Remova as credenciais antes de prosseguir.
+            echo ====================================================================
+            pause
+            exit /b 1
+        )
+    )
+)
+for /f "tokens=*" %%F in ('git ls-files --others --exclude-standard') do (
+    if exist "%%F" (
+        findstr /i /r "AIza sk- token=" "%%F" >nul 2>&1
+        if !errorlevel! equ 0 (
+            echo.
+            echo ====================================================================
+            echo [ERRO - ABORTADO] Possivel vazamento de credenciais detectado no arquivo novo: %%F
             echo Foram encontrados padroes suspeitos (AIza, sk-, token=).
             echo Remova as credenciais antes de prosseguir.
             echo ====================================================================
@@ -63,8 +78,23 @@ for /f "tokens=*" %%A in ('git status --porcelain') do (
 echo [OK] Nenhum arquivo proibido detectado.
 echo.
 
-echo Status dos arquivos modificados:
+echo ====================================================================
+echo Resumo dos arquivos modificados e novos para inclusao:
+echo ====================================================================
 git status -s
+echo.
+
+set "CONFIRM_PUB="
+set /p "CONFIRM_PUB=Para confirmar a publicacao e prosseguir com o git add, digite PUBLICAR: "
+if not "!CONFIRM_PUB!"=="PUBLICAR" (
+    echo.
+    echo ====================================================================
+    echo [ABORTADO] Publicacao cancelada pelo usuario. Nenhuma alteracao foi commitada.
+    echo ====================================================================
+    pause
+    exit /b 0
+)
+echo [OK] Confirmacao recebida.
 echo.
 
 set "MSG_COMMIT="

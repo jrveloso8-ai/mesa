@@ -1,0 +1,3 @@
+# Arquivos permitidos para ignorar na varredura de segredos
+# Formato: caminho - motivo
+tests/test_v0_06_brapi_security.py - token ficticio de teste

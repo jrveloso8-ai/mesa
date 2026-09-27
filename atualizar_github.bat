@@ -24,74 +24,44 @@ if errorlevel 1 (
 echo [OK] Testes passaram com sucesso.
 echo.
 
-echo [Portão 2/3] Verificando vazamento de credenciais nos arquivos modificados, novos e commits nao publicados...
-for /f "tokens=*" %%F in ('git diff --name-only HEAD') do (
-    if exist "%%F" (
-        findstr /i /r "AIza sk- token=" "%%F" >nul 2>&1
-        if !errorlevel! equ 0 (
-            echo.
-            echo ====================================================================
-            echo [ERRO - ABORTADO] Possivel vazamento de credenciais detectado no arquivo: %%F
-            echo Foram encontrados padroes suspeitos (AIza, sk-, token=).
-            echo Remova as credenciais antes de prosseguir.
-            echo ====================================================================
-            pause
-            exit /b 1
-        )
-    )
+echo [Portão 2/3] Verificando vazamento de credenciais via scripts/varrer_segredos.py...
+git diff --name-only HEAD | python scripts/varrer_segredos.py
+if errorlevel 1 (
+    echo.
+    echo ====================================================================
+    echo [ERRO - ABORTADO] Possivel vazamento de credenciais detectado nos arquivos modificados!
+    echo Remova as credenciais antes de prosseguir.
+    echo ====================================================================
+    pause
+    exit /b 1
 )
-for /f "tokens=*" %%F in ('git ls-files --others --exclude-standard') do (
-    if exist "%%F" (
-        findstr /i /r "AIza sk- token=" "%%F" >nul 2>&1
-        if !errorlevel! equ 0 (
-            echo.
-            echo ====================================================================
-            echo [ERRO - ABORTADO] Possivel vazamento de credenciais detectado no arquivo novo: %%F
-            echo Foram encontrados padroes suspeitos (AIza, sk-, token=).
-            echo Remova as credenciais antes de prosseguir.
-            echo ====================================================================
-            pause
-            exit /b 1
-        )
-    )
+
+git ls-files --others --exclude-standard | python scripts/varrer_segredos.py
+if errorlevel 1 (
+    echo.
+    echo ====================================================================
+    echo [ERRO - ABORTADO] Possivel vazamento de credenciais detectado nos arquivos novos!
+    echo Remova as credenciais antes de prosseguir.
+    echo ====================================================================
+    pause
+    exit /b 1
 )
+
 git rev-parse --verify origin/main >nul 2>&1
-if errorlevel 1 goto scan_ls_files
-for /f "tokens=*" %%F in ('git diff --name-only origin/main..HEAD') do (
-    if exist "%%F" (
-        findstr /i /r "AIza sk- token=" "%%F" >nul 2>&1
-        if !errorlevel! equ 0 (
-            echo.
-            echo ====================================================================
-            echo [ERRO - ABORTADO] Possivel vazamento de credenciais detectado em commit nao publicado: %%F
-            echo Foram encontrados padroes suspeitos (AIza, sk-, token=).
-            echo Remova as credenciais antes de prosseguir.
-            echo ====================================================================
-            pause
-            exit /b 1
-        )
-    )
+if errorlevel 1 (
+    git ls-files | python scripts/varrer_segredos.py
+) else (
+    git diff --name-only origin/main..HEAD | python scripts/varrer_segredos.py
 )
-goto fim_scan_commits
-
-:scan_ls_files
-for /f "tokens=*" %%F in ('git ls-files') do (
-    if exist "%%F" (
-        findstr /i /r "AIza sk- token=" "%%F" >nul 2>&1
-        if !errorlevel! equ 0 (
-            echo.
-            echo ====================================================================
-            echo [ERRO - ABORTADO] Possivel vazamento de credenciais detectado no arquivo: %%F
-            echo Foram encontrados padroes suspeitos (AIza, sk-, token=).
-            echo Remova as credenciais antes de prosseguir.
-            echo ====================================================================
-            pause
-            exit /b 1
-        )
-    )
+if errorlevel 1 (
+    echo.
+    echo ====================================================================
+    echo [ERRO - ABORTADO] Possivel vazamento de credenciais detectado nos commits nao publicados!
+    echo Remova as credenciais antes de prosseguir.
+    echo ====================================================================
+    pause
+    exit /b 1
 )
-
-:fim_scan_commits
 echo [OK] Nenhuma credencial exposta encontrada.
 echo.
 

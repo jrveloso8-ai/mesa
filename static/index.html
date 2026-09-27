@@ -211,8 +211,8 @@
       </button>
       <button class="tab-btn" id="tabBtnRanking" onclick="trocarAba('ranking', this)">
         <span class="tab-icon">📊</span>
-        <span class="tab-title">Universo IBrX-100 & Screening</span>
-        <span class="tab-indicator">100 Ativos</span>
+        <span class="tab-title">Cesta de Liquidez & Screening</span>
+        <span class="tab-indicator">Cesta B3</span>
       </button>
     </div>
 
@@ -376,13 +376,13 @@
 
   <!-- ABA 3: RANKING & SCREENING DO IBRX-100 -->
   <div class="tab-content" id="tabContentRanking">
-    <!-- Seção de Triagem & Ranking IBrX-100 (Universo Completo dos 100 Ativos) -->
+    <!-- Seção de Triagem & Ranking (Cesta de Alta Liquidez B3) -->
     <section class="ranking-section" id="rankingSection">
       <div class="card ranking-card">
         <div class="ranking-header">
           <div class="ranking-title-group">
-            <span class="badge-tag">UNIVERSO IBRX-100 &middot; AUDITORIA COMPLETA DE SELEÇÃO</span>
-            <h2>📊 Ranking dos 100 Ativos do Melhor para o Pior</h2>
+            <span class="badge-tag">CESTA DE LIQUIDEZ B3 &middot; AUDITORIA COMPLETA DE SELEÇÃO</span>
+            <h2>📊 Ranking dos Ativos Monitorados</h2>
             <p class="ranking-subtitle">Diagnóstico transparente de aprovação e eliminação através das 4 fases da esteira multiagente.</p>
           </div>
           
@@ -418,8 +418,8 @@
         <!-- Filtros Rápidos -->
         <div class="ranking-filters-bar">
           <span class="filter-label">Filtrar por:</span>
-          <button class="filter-btn active" data-filter="todos" onclick="aplicarFiltroStatus('todos', this)">Todos (100)</button>
-          <button class="filter-btn" data-filter="top10" onclick="aplicarFiltroStatus('top10', this)">Top 10</button>
+          <button class="filter-btn active" data-filter="todos" onclick="aplicarFiltroStatus('todos', this)">Todos</button>
+          <button class="filter-btn" data-filter="top10" onclick="aplicarFiltroStatus('top10', this)">Top Picks</button>
           <button class="filter-btn" data-filter="VETADO_NO_RISCO" onclick="aplicarFiltroStatus('VETADO_NO_RISCO', this)">Vetados no Risco</button>
           <button class="filter-btn" data-filter="ELEGIVEL_EM_ESPERA" onclick="aplicarFiltroStatus('ELEGIVEL_EM_ESPERA', this)">Elegíveis em Espera</button>
           <button class="filter-btn" data-filter="ELIMINADO_TECNICO" onclick="aplicarFiltroStatus('ELIMINADO_TECNICO', this)">Reprovados em Técnico</button>
@@ -427,7 +427,7 @@
           <button class="filter-btn" data-filter="ELIMINADO_MACRO" onclick="aplicarFiltroStatus('ELIMINADO_MACRO', this)">Reprovados em Macro</button>
         </div>
 
-        <!-- Tabela Responsiva dos 100 Ativos -->
+        <!-- Tabela Responsiva dos Ativos -->
         <div class="table-responsive ranking-table-wrapper">
           <table class="ranking-table" id="rankingTable">
             <thead>
@@ -447,7 +447,7 @@
             <tbody id="rankingTableBody">
               <tr>
                 <td colspan="10" style="text-align: center; padding: 2rem; color: var(--text-muted);">
-                  Carregando dados da triagem dos 100 ativos do IBrX-100...
+                  Carregando dados da triagem dos ativos da cesta de liquidez B3...
                 </td>
               </tr>
             </tbody>

@@ -242,7 +242,7 @@ function animarProgressoAgentes(data) {
     mensagem = "Fase 1/6: Analista Macro varrendo notícias, Selic, Fed e pré-selecionando ativos...";
     teto = 32;
   } else if (ativo === 2) {
-    mensagem = "Fase 2/6: Fundamentalista auditando múltiplos dos 100 ativos do IBrX-100 via BRAPI...";
+    mensagem = "Fase 2/6: Fundamentalista auditando múltiplos da cesta de liquidez B3 via BRAPI...";
     teto = 52;
   } else if (ativo === 3) {
     mensagem = "Fase 3/6: Analista Técnico CNPI-T calculando médias (SMA20/50), suportes, RSI-14 e checklist Dow...";
@@ -606,7 +606,7 @@ function renderizarGraficos(graficos) {
 }
 
 // ========================================================
-// GERENCIAMENTO DA TRIAGEM & RANKING DOS 100 ATIVOS
+// GERENCIAMENTO DA TRIAGEM & RANKING DA CESTA DE LIQUIDEZ
 // ========================================================
 async function carregarRanking() {
   try {
@@ -632,7 +632,7 @@ async function carregarRanking() {
       renderizarTabelaRanking(todosDadosRanking);
     }
   } catch (err) {
-    console.error("Erro ao carregar ranking dos 100 ativos:", err);
+    console.error("Erro ao carregar ranking da cesta de liquidez:", err);
   }
 }
 

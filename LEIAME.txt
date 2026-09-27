@@ -1,7 +1,64 @@
 ======================================================================
-MESA DE OPERAÇÕES B3 - RETROFIT DE CONFORMIDADE V2 -> V3
-CORREÇÕES FINAIS (ONDA 3)
+MESA DE OPERAÇÕES B3 - RETROFIT DE CONFORMIDADE V3.1 -> V3.2
+AJUSTES DE LIBERAÇÃO (VARREDURA DE SEGREDOS DETERMINÍSTICA)
 Data: 27/09/2026
+======================================================================
+
+ITENS AJUSTADOS, COMMITS E RESULTADOS:
+
+[V3.1-01] MÉDIO - Varredura de segredos dá falso positivo e trava a publicação
+- Commit: 1a62e25
+- Mensagem: fix(security): [V3.1-01] substituir findstr por varrer_segredos.py com lista de permitidos e padroes precisos
+- Arquivos alterados/criados:
+  * scripts/varrer_segredos.py (novo scanner em Python puro)
+  * scripts/segredos_permitidos.txt (lista oficial de exceções de teste)
+  * atualizar_github.bat (Portão 2/3 refatorado para invocar o script)
+  * tests/test_varrer_segredos.py (suíte unitária dedicada)
+- Modificações e Regras:
+  a) Criado scripts/varrer_segredos.py com detecção precisa via regex de credenciais reais:
+     - AIza[0-9A-Za-z_-]{35}
+     - sk-[A-Za-z0-9_-]{20,}
+     - ghp_[A-Za-z0-9]{36}
+     - (token|api_key|apikey|secret)\s*[=:]\s*["']?[A-Za-z0-9_-]{16,} (com exclusão de chamadas de função)
+  b) O próprio script e os arquivos listados em scripts/segredos_permitidos.txt são ignorados.
+  c) tests/test_v0_06_brapi_security.py registrado em segredos_permitidos.txt como token fictício de teste.
+  d) Classes CSS como "risk-block" e placeholders curtos não disparam alertas falsos.
+  e) atualizar_github.bat agora invoca scripts/varrer_segredos.py via pipeline para os 3 conjuntos:
+     git diff HEAD, git ls-files não rastreados e git diff origin/main..HEAD (com fallback).
+  f) O script .bat não foi executado.
+- Resultado: Suíte com 56 testes passando e varredura sobre origin/main..HEAD retornando 0 sem ocorrências.
+
+======================================================================
+HISTÓRICO ANTERIOR (V3 -> V3.1)
+======================================================================
+
+ITENS AJUSTADOS, COMMITS E RESULTADOS:
+
+[V3-01] MÉDIO - Teste depende do resultado real
+- Commit: 760a8c3
+- Mensagem: test(isolation): [V3-01] isolar teste do screener em tmp_path eliminando dependencia de output real
+- Arquivo alterado: tests/test_pdf_status.py
+- Modificações e Regras:
+  O teste test_screener_ibrx100_sem_scores_hardcoded agora roda isolado em tmp_path
+  via monkeypatch.chdir, grava seu próprio resultado_pos_gate.json de exemplo (com ativo
+  vetado) e simula a ferramenta de cotações da cesta de liquidez (consultar_cotacoes_cesta_liquidez).
+  Não depende do estado real da pasta output/ nem de execuções prévias da mesa.
+- Resultado: Suíte completa com 52 testes passando tanto com resultado APROVADO quanto REPROVADO.
+
+[V3-02] MÉDIO - Varredura de segredos ignora commits nao publicados
+- Commit: a41ebd7
+- Mensagem: ci(deploy): [V3-02] varrer commits nao publicados contra credenciais no atualizar_github.bat
+- Arquivo alterado: atualizar_github.bat
+- Modificações e Regras:
+  O Portão 2/3 de validação de segredos agora verifica se origin/main existe via
+  'git rev-parse --verify origin/main' e varre todos os commits locais ainda não publicados
+  ('git diff --name-only origin/main..HEAD'). Caso origin/main não exista, realiza a varredura
+  completa sobre todos os arquivos rastreados ('git ls-files'). Todos os demais portões foram mantidos.
+  O script .bat não foi executado.
+- Resultado: Portão de segurança cobre commits pendentes de publicação.
+
+======================================================================
+HISTÓRICO ANTERIOR (ONDA 3 - V2 -> V3)
 ======================================================================
 
 1. PASSO 0 — PREPARAÇÃO DO AMBIENTE
